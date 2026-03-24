@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="description" content="BPMredux - Real-time BPM detection from microphone input">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="manifest.json">
+  <title>BPMredux</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="src/styles.css">
+</head>
+<body>
+  <!-- CRT Overlay Effects -->
+  <div id="crt-overlay" class="crt-overlay"></div>
+  <div id="vignette" class="vignette"></div>
+
+  <div id="app" class="app-grid">
+    <!-- BPM Gauge Canvas -->
+    <section class="gauge-section">
+      <canvas id="bpm-gauge" class="gauge-canvas"></canvas>
+      <div id="bpm-display" class="bpm-readout">
+        <span id="bpm-value" class="bpm-value">---</span>
+        <span class="bpm-label">BPM</span>
+      </div>
+    </section>
+
+    <!-- Spectrogram Canvas -->
+    <section class="spectrogram-section">
+      <canvas id="spectrogram" class="spectrogram-canvas"></canvas>
+    </section>
+
+    <!-- Tap Area -->
+    <section id="tap-area" class="tap-section" role="button" tabindex="0" aria-label="Tap to set BPM">
+      <div class="tap-inner">
+        <span id="tap-text" class="tap-text">TAP</span>
+        <span id="tap-bpm" class="tap-bpm"></span>
+      </div>
+    </section>
+
+    <!-- Band Toggle Row -->
+    <section class="band-section">
+      <button id="band-sub" class="band-btn active" data-band="sub">
+        <span class="led"></span>
+        SUB
+      </button>
+      <button id="band-mid" class="band-btn active" data-band="mid">
+        <span class="led"></span>
+        MID
+      </button>
+      <button id="band-hi" class="band-btn active" data-band="hi">
+        <span class="led"></span>
+        HI
+      </button>
+    </section>
+
+    <!-- BPM Range Slider (dual-thumb) -->
+    <section class="range-section">
+      <div class="range-label">
+        <span>BPM RANGE</span>
+        <span id="range-display" class="range-values">120 – 180</span>
+      </div>
+      <div class="dual-range-container">
+        <div id="range-track" class="range-track"></div>
+        <input type="range" id="bpm-range-min" class="range-input range-min" min="60" max="240" value="120" step="1" aria-label="Minimum BPM">
+        <input type="range" id="bpm-range-max" class="range-input range-max" min="60" max="240" value="180" step="1" aria-label="Maximum BPM">
+      </div>
+    </section>
+
+    <!-- Start/Stop Button -->
+    <section class="controls-section">
+      <button id="btn-start" class="start-btn" aria-label="Start microphone">
+        ▶ START MIC
+      </button>
+    </section>
+
+    <!-- Amplitude Threshold Slider (vertical, right side) -->
+    <aside class="threshold-section">
+      <label for="threshold-slider" class="threshold-label">THR</label>
+      <input type="range" id="threshold-slider" class="threshold-slider" min="0" max="100" value="30" step="1" orient="vertical" aria-label="Amplitude threshold">
+      <span id="threshold-value" class="threshold-value">30</span>
+    </aside>
+  </div>
+
+  <!-- ES6 Module Scripts -->
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

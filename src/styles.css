@@ -1,0 +1,571 @@
+/* ============================================
+   BPMredux - CRT Terminal Aesthetic
+   Mobile-first, full viewport, no scroll
+   ============================================ */
+
+:root {
+  --black: #000000;
+  --surface: #030808;
+  --accent: #00E5FF;
+  --accent-dim: #00889A;
+  --accent-subtle: #0D2A2D;
+  --text-primary: #7FCFD6;
+  --text-secondary: #2A6B6E;
+  --text-dim: #163538;
+  --font-mono: 'Share Tech Mono', monospace;
+  --glow: 0 0 8px rgba(0, 229, 255, 0.4);
+  --glow-strong: 0 0 16px rgba(0, 229, 255, 0.6), 0 0 32px rgba(0, 229, 255, 0.2);
+}
+
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--black);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+  touch-action: manipulation;
+}
+
+/* ---- CRT Overlay: Scanlines ---- */
+.crt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 2px,
+    rgba(0, 0, 0, 0.15) 2px,
+    rgba(0, 0, 0, 0.15) 4px
+  );
+}
+
+/* ---- CRT Overlay: Vignette ---- */
+.vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 9997;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 80px rgba(0, 0, 0, 0.8),
+    inset 0 0 160px rgba(0, 0, 0, 0.5);
+}
+
+/* ============================================
+   App Grid Layout - Mobile First
+   ============================================ */
+.app-grid {
+  display: grid;
+  width: 100vw;
+  height: 100dvh;
+  padding: 4px;
+  gap: 3px;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: 35fr 25fr 12fr auto auto auto;
+  grid-template-areas:
+    "gauge      threshold"
+    "spectro    threshold"
+    "tap        threshold"
+    "bands      bands"
+    "range      range"
+    "controls   controls";
+}
+
+/* ============================================
+   Gauge Section (BPM arc)
+   ============================================ */
+.gauge-section {
+  grid-area: gauge;
+  position: relative;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: 1px solid var(--accent-subtle);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.gauge-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.bpm-readout {
+  position: absolute;
+  bottom: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+}
+
+.bpm-value {
+  display: block;
+  font-size: clamp(2rem, 8vw, 4rem);
+  color: var(--accent);
+  text-shadow: var(--glow-strong);
+  line-height: 1;
+  letter-spacing: 0.05em;
+}
+
+.bpm-label {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.3em;
+  margin-top: 2px;
+}
+
+/* Beat pulse animation on bpm-value */
+@keyframes beat-pulse {
+  0% { transform: translateX(-50%) scale(1); }
+  15% { transform: translateX(-50%) scale(1.08); }
+  100% { transform: translateX(-50%) scale(1); }
+}
+
+.bpm-readout.pulse {
+  animation: beat-pulse 0.15s ease-out;
+}
+
+/* ============================================
+   Spectrogram Section
+   ============================================ */
+.spectrogram-section {
+  grid-area: spectro;
+  min-height: 0;
+  background: var(--surface);
+  border: 1px solid var(--accent-subtle);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.spectrogram-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ============================================
+   Tap Area
+   ============================================ */
+.tap-section {
+  grid-area: tap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: 1px solid var(--accent-subtle);
+  border-radius: 2px;
+  cursor: pointer;
+  user-select: none;
+  min-height: 48px;
+  transition: background 0.06s, border-color 0.06s;
+  -webkit-user-select: none;
+}
+
+.tap-section:active,
+.tap-section.flash {
+  background: var(--accent-subtle);
+  border-color: var(--accent-dim);
+}
+
+@keyframes tap-flash {
+  0% { background: rgba(0, 229, 255, 0.15); }
+  100% { background: var(--surface); }
+}
+
+.tap-section.flash {
+  animation: tap-flash 0.2s ease-out;
+}
+
+.tap-inner {
+  text-align: center;
+  pointer-events: none;
+}
+
+.tap-text {
+  display: block;
+  font-size: clamp(1rem, 4vw, 1.6rem);
+  color: var(--text-primary);
+  letter-spacing: 0.2em;
+}
+
+.tap-bpm {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--accent-dim);
+  min-height: 1.2em;
+}
+
+/* ============================================
+   Band Toggle Buttons
+   ============================================ */
+.band-section {
+  grid-area: bands;
+  display: flex;
+  gap: 4px;
+  padding: 2px 0;
+}
+
+.band-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  background: var(--surface);
+  border: 1px solid var(--text-dim);
+  border-radius: 2px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: clamp(0.7rem, 2.5vw, 0.9rem);
+  letter-spacing: 0.15em;
+  cursor: pointer;
+  transition: all 0.12s;
+  user-select: none;
+  -webkit-user-select: none;
+  padding: 0;
+}
+
+.band-btn .led {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  transition: all 0.12s;
+  flex-shrink: 0;
+}
+
+.band-btn.active {
+  border-color: var(--accent-dim);
+  color: var(--accent);
+  box-shadow: 0 0 6px rgba(0, 229, 255, 0.2);
+}
+
+.band-btn.active .led {
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent), 0 0 12px rgba(0, 229, 255, 0.4);
+}
+
+.band-btn:active {
+  transform: scale(0.96);
+  background: var(--accent-subtle);
+}
+
+/* ============================================
+   Dual-Thumb BPM Range Slider
+   ============================================ */
+.range-section {
+  grid-area: range;
+  padding: 2px 0;
+}
+
+.range-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.1em;
+  margin-bottom: 4px;
+  padding: 0 2px;
+}
+
+.range-values {
+  color: var(--accent-dim);
+}
+
+.dual-range-container {
+  position: relative;
+  height: 36px;
+  display: flex;
+  align-items: center;
+}
+
+.range-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--text-dim);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.range-track::after {
+  content: '';
+  position: absolute;
+  height: 100%;
+  background: var(--accent-dim);
+  border-radius: 2px;
+  left: 0%;
+  right: 0%;
+}
+
+.range-input {
+  position: absolute;
+  width: 100%;
+  height: 36px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  pointer-events: none;
+  margin: 0;
+}
+
+.range-input::-webkit-slider-runnable-track {
+  height: 4px;
+  background: transparent;
+  border: none;
+}
+
+.range-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--accent-dim);
+  cursor: pointer;
+  pointer-events: auto;
+  margin-top: -9px;
+  box-shadow: 0 0 6px rgba(0, 229, 255, 0.3);
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+
+.range-input::-webkit-slider-thumb:active {
+  border-color: var(--accent);
+  box-shadow: var(--glow-strong);
+}
+
+.range-input::-moz-range-track {
+  height: 4px;
+  background: transparent;
+  border: none;
+}
+
+.range-input::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--accent-dim);
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 0 6px rgba(0, 229, 255, 0.3);
+}
+
+.range-input::-moz-range-thumb:active {
+  border-color: var(--accent);
+  box-shadow: var(--glow-strong);
+}
+
+/* Ensure max slider thumb stays on top */
+.range-min { z-index: 1; }
+.range-max { z-index: 2; }
+
+/* ============================================
+   Start/Stop Button
+   ============================================ */
+.controls-section {
+  grid-area: controls;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0;
+}
+
+.start-btn {
+  width: 100%;
+  min-height: 48px;
+  background: var(--surface);
+  border: 2px solid var(--accent-dim);
+  border-radius: 3px;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: clamp(0.9rem, 3vw, 1.1rem);
+  letter-spacing: 0.2em;
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+  -webkit-user-select: none;
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.15), inset 0 0 10px rgba(0, 229, 255, 0.05);
+}
+
+.start-btn:hover {
+  border-color: var(--accent);
+  box-shadow: var(--glow-strong);
+}
+
+.start-btn:active {
+  transform: scale(0.97);
+  background: var(--accent-subtle);
+}
+
+.start-btn.active {
+  border-color: #ff3b3b;
+  color: #ff3b3b;
+  box-shadow: 0 0 10px rgba(255, 59, 59, 0.3), inset 0 0 10px rgba(255, 59, 59, 0.05);
+}
+
+.start-btn.active:hover {
+  box-shadow: 0 0 16px rgba(255, 59, 59, 0.5), 0 0 32px rgba(255, 59, 59, 0.2);
+}
+
+/* ============================================
+   Amplitude Threshold Slider (vertical)
+   ============================================ */
+.threshold-section {
+  grid-area: threshold;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 4px;
+  background: var(--surface);
+  border: 1px solid var(--accent-subtle);
+  border-radius: 2px;
+  width: 40px;
+}
+
+.threshold-label {
+  font-size: 0.55rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.15em;
+  writing-mode: horizontal-tb;
+}
+
+.threshold-slider {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 28px;
+  flex: 1;
+  margin: 4px 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* Webkit vertical slider */
+.threshold-slider::-webkit-slider-runnable-track {
+  width: 4px;
+  background: var(--text-dim);
+  border-radius: 2px;
+}
+
+.threshold-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--accent-dim);
+  box-shadow: 0 0 4px rgba(0, 229, 255, 0.3);
+}
+
+/* Firefox vertical slider */
+.threshold-slider::-moz-range-track {
+  width: 4px;
+  background: var(--text-dim);
+  border-radius: 2px;
+}
+
+.threshold-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--accent-dim);
+  box-shadow: 0 0 4px rgba(0, 229, 255, 0.3);
+}
+
+.threshold-value {
+  font-size: 0.55rem;
+  color: var(--accent-dim);
+}
+
+/* ============================================
+   Desktop Layout (>768px)
+   ============================================ */
+@media (min-width: 769px) {
+  .app-grid {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 8px;
+    gap: 6px;
+    grid-template-columns: 1fr 50px;
+    grid-template-rows: 35fr 25fr 12fr auto auto auto;
+  }
+
+  .threshold-section {
+    width: 50px;
+  }
+
+  .bpm-value {
+    font-size: clamp(2.5rem, 6vw, 5rem);
+  }
+
+  .band-btn {
+    min-height: 48px;
+  }
+
+  .start-btn {
+    min-height: 52px;
+  }
+}
+
+/* ============================================
+   Landscape phone
+   ============================================ */
+@media (max-height: 500px) and (orientation: landscape) {
+  .app-grid {
+    grid-template-rows: 30fr 25fr 10fr auto auto auto;
+    gap: 2px;
+    padding: 2px;
+  }
+
+  .bpm-value {
+    font-size: 1.8rem;
+  }
+
+  .band-btn,
+  .start-btn {
+    min-height: 36px;
+  }
+}
+
+/* ============================================
+   Utility / Animation Classes
+   ============================================ */
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(0, 229, 255, 0.2); }
+  50% { box-shadow: 0 0 16px rgba(0, 229, 255, 0.5); }
+}
+
+.listening .gauge-section {
+  border-color: var(--accent-dim);
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+/* Focus styles for accessibility */
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
