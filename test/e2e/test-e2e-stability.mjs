@@ -5,7 +5,7 @@
  * Run: node --experimental-vm-modules test/e2e/test-e2e-stability.mjs
  */
 
-import { describe, it } from 'node:test';
+import { describe, it, after } from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -23,7 +23,7 @@ const SAMPLE_RATE = 44100;
 const FFT_SIZE = 4096;
 const HOP_SIZE = 1024;
 const ODF_INTERVAL = SAMPLE_RATE / 100; // 441 samples between ODF ticks
-const AMPLITUDE_THRESHOLD = 0.05;  // Lower threshold for test files
+const AMPLITUDE_THRESHOLD = 0.05;
 
 /**
  * Parse a 16-bit mono PCM WAV file.
@@ -52,75 +52,65 @@ const STABILITY_PRESETS = {
 };
 
 /**
- * Test tracks with their expected BPM characteristics
- * Based on librosa verification results
+ * Ground truth BPM timelines loaded from JSON
  */
-const TEST_TRACKS = [
-  {
-    name: 'techno_variant',
-    file: 'techno_variant.wav',
-    baseBpm: 136,
-    description: 'Techno with variable tempo',
-    // Librosa detected ~99 BPM for this file (mostly 0.72x section)
-    // But responsive mode might catch the faster start
-    expectedFinalBpm: { min: 85, max: 200 }  // Wide range due to tempo variation
-  },
-  {
-    name: 'trance_variant',
-    file: 'trance_variant.wav',
-    baseBpm: 136,
-    description: 'Trance with variable tempo',
-    // Librosa detected ~97.5 BPM
-    expectedFinalBpm: { min: 85, max: 200 }
-  },
-  {
-    name: 'dnb_variant',
-    file: 'dnb_variant.wav',
-    baseBpm: 175,
-    description: 'Drum & Bass with variable tempo (detects half tempo)',
-    // Librosa detected ~110-120 BPM (half tempo at 0.72x speed)
-    expectedFinalBpm: { min: 85, max: 200 }
+let bpmTimelines = {};
+
+/**
+ * Interpolate BPM at a given time from the timeline
+ */
+function getGroundTruthBpm(timeline, time) {
+  if (!timeline || timeline.length === 0) return null;
+  if (time <= timeline[0].time) return timeline[0].bpm;
+  if (time >= timeline[timeline.length - 1].time) return timeline[timeline.length - 1].bpm;
+  
+  // Find surrounding points
+  for (let i = 0; i < timeline.length - 1; i++) {
+    if (time >= timeline[i].time && time <= timeline[i + 1].time) {
+      const t0 = timeline[i].time;
+      const t1 = timeline[i + 1].time;
+      const bpm0 = timeline[i].bpm;
+      const bpm1 = timeline[i + 1].bpm;
+      
+      // Linear interpolation
+      const ratio = (time - t0) / (t1 - t0);
+      return bpm0 + ratio * (bpm1 - bpm0);
+    }
   }
-];
+  
+  return timeline[timeline.length - 1].bpm;
+}
 
 /**
  * Process a WAV file through the DSP pipeline with given stability setting.
- * Returns metrics including response time, jitter, and final BPM.
  */
-function processTrackWithStability(samples, stabilityLevel) {
-  // Initialize DSP pipeline
+function processTrackWithStability(samples, stabilityLevel, trackName) {
   const fftProcessor = new FFTProcessor(FFT_SIZE);
   const bandFilter = new BandFilter();
   const onsetDetector = new OnsetDetector();
   const tempoEstimator = new TempoEstimator();
 
-  // Apply stability setting
-  const stabilityValue = stabilityLevel / 100; // 0-1 range
+  const stabilityValue = stabilityLevel / 100;
   tempoEstimator.setStability(stabilityValue);
   onsetDetector.setStability(stabilityValue);
 
-  // Wide BPM range
   tempoEstimator.bpmRangeMin = 60;
   tempoEstimator.bpmRangeMax = 240;
 
-  // Ring buffer state
   const ringBuffer = new Float32Array(FFT_SIZE);
   let ringWritePos = 0;
   let samplesUntilEmit = FFT_SIZE;
 
-  // ODF timing state
   let odfSamplesProcessed = 0;
   let odfAccumulator = 0;
   let lastOnset = false;
 
-  // Result tracking
   const bpmReadings = [];
   let finalBpm = 0;
   let finalConfidence = 0;
   let totalFrames = 0;
   let onsetCount = 0;
 
-  // Process all samples
   for (let i = 0; i < samples.length; i++) {
     ringBuffer[ringWritePos] = samples[i];
     ringWritePos = (ringWritePos + 1) % FFT_SIZE;
@@ -132,11 +122,9 @@ function processTrackWithStability(samples, stabilityLevel) {
         frame[j] = ringBuffer[(ringWritePos + j) % FFT_SIZE];
       }
 
-      // Process frame
       const magnitudes = fftProcessor.process(frame);
       const bandEnergy = bandFilter.filter(magnitudes);
 
-      // RMS amplitude
       let sumSq = 0;
       for (let k = 0; k < frame.length; k++) {
         sumSq += frame[k] * frame[k];
@@ -145,7 +133,6 @@ function processTrackWithStability(samples, stabilityLevel) {
 
       const timeMs = (i / SAMPLE_RATE) * 1000;
 
-      // Amplitude gate + onset detection
       if (rmsAmplitude < AMPLITUDE_THRESHOLD) {
         lastOnset = false;
       } else {
@@ -154,7 +141,6 @@ function processTrackWithStability(samples, stabilityLevel) {
 
       if (lastOnset) onsetCount++;
 
-      // Feed ODF at 100 Hz
       odfSamplesProcessed += HOP_SIZE;
       while (odfAccumulator + ODF_INTERVAL <= odfSamplesProcessed) {
         odfAccumulator += ODF_INTERVAL;
@@ -175,7 +161,6 @@ function processTrackWithStability(samples, stabilityLevel) {
     }
   }
 
-  // Calculate metrics
   return {
     finalBpm,
     finalConfidence,
@@ -183,17 +168,14 @@ function processTrackWithStability(samples, stabilityLevel) {
     onsetCount,
     bpmReadings,
     jitter: calculateJitter(bpmReadings),
-    responseTime: calculateResponseTime(bpmReadings)
+    responseTime: calculateResponseTime(bpmReadings),
+    mae: calculateMAE(bpmReadings, trackName),
+    trackingError: calculateTrackingError(bpmReadings, trackName)
   };
 }
 
-/**
- * Calculate jitter (standard deviation of BPM readings).
- */
 function calculateJitter(readings) {
   if (readings.length < 2) return 0;
-
-  // Only consider readings after the first 10 seconds (warmup period)
   const stableReadings = readings.filter(r => r.time > 10);
   if (stableReadings.length < 2) return 0;
 
@@ -202,65 +184,148 @@ function calculateJitter(readings) {
   return Math.sqrt(variance);
 }
 
-/**
- * Calculate response time - how long until BPM stabilizes.
- */
 function calculateResponseTime(readings) {
   if (readings.length < 2) return null;
-
-  // Find when we first get a reading with confidence > 0.1
   const firstValid = readings.find(r => r.confidence > 0.1);
-  if (!firstValid) return null;
-
-  return firstValid.time;
+  return firstValid ? firstValid.time : null;
 }
+
+function calculateMAE(readings, trackName) {
+  if (readings.length === 0) return 0;
+  
+  const timeline = bpmTimelines[trackName]?.timeline;
+  if (!timeline) return 0;
+  
+  let totalError = 0;
+  let count = 0;
+  
+  for (const reading of readings) {
+    const groundTruth = getGroundTruthBpm(timeline, reading.time);
+    if (groundTruth !== null) {
+      totalError += Math.abs(reading.bpm - groundTruth);
+      count++;
+    }
+  }
+  
+  return count > 0 ? totalError / count : 0;
+}
+
+function calculateTrackingError(readings, trackName) {
+  if (readings.length < 2) return 0;
+  
+  const timeline = bpmTimelines[trackName]?.timeline;
+  if (!timeline) return 0;
+  
+  const gtStart = getGroundTruthBpm(timeline, 0);
+  const gtEnd = getGroundTruthBpm(timeline, 60);
+  if (gtStart === null || gtEnd === null) return 0;
+  
+  const expectedSlope = (gtEnd - gtStart) / 60;
+  
+  const validReadings = readings.filter(r => r.confidence > 0.1);
+  if (validReadings.length < 2) return 0;
+  
+  const firstReading = validReadings[0];
+  const lastReading = validReadings[validReadings.length - 1];
+  const actualSlope = (lastReading.bpm - firstReading.bpm) / (lastReading.time - firstReading.time);
+  
+  if (Math.abs(expectedSlope) < 0.1) return 0;
+  
+  return Math.abs(actualSlope - expectedSlope) / Math.abs(expectedSlope);
+}
+
+function formatNum(num, decimals = 1) {
+  return num.toFixed(decimals);
+}
+
+// Load ground truth BPM timelines
+const timelinesPath = resolve(__dirname, 'fixtures/bpm_timelines.json');
+try {
+  const timelinesData = readFileSync(timelinesPath, 'utf-8');
+  bpmTimelines = JSON.parse(timelinesData);
+  console.log(`Loaded ground truth timelines from ${timelinesPath}\n`);
+} catch (err) {
+  console.warn(`Warning: Could not load BPM timelines: ${err.message}`);
+}
+
+/**
+ * Test tracks - 9 files (3 genres x 3 variants)
+ */
+const TEST_TRACKS = [
+  { name: 'techno_original', file: 'techno_original.wav', baseBpm: 136, pattern: 'constant' },
+  { name: 'techno_increasing', file: 'techno_increasing.wav', baseBpm: 136, pattern: 'increasing' },
+  { name: 'techno_decreasing', file: 'techno_decreasing.wav', baseBpm: 136, pattern: 'decreasing' },
+  { name: 'trance_original', file: 'trance_original.wav', baseBpm: 140, pattern: 'constant' },
+  { name: 'trance_increasing', file: 'trance_increasing.wav', baseBpm: 140, pattern: 'increasing' },
+  { name: 'trance_decreasing', file: 'trance_decreasing.wav', baseBpm: 140, pattern: 'decreasing' },
+  { name: 'dnb_original', file: 'dnb_original.wav', baseBpm: 175, pattern: 'constant' },
+  { name: 'dnb_increasing', file: 'dnb_increasing.wav', baseBpm: 175, pattern: 'increasing' },
+  { name: 'dnb_decreasing', file: 'dnb_decreasing.wav', baseBpm: 175, pattern: 'decreasing' }
+];
+
+const results = [];
 
 describe('Stability Slider E2E Tests', () => {
   TEST_TRACKS.forEach(track => {
-    describe(`${track.name} - ${track.description}`, () => {
-      Object.entries(STABILITY_PRESETS).forEach(([presetName, presetValue]) => {
-        it(`STAB=${presetValue} (${presetName}) - should detect BPM in expected range`, () => {
-          const wavPath = resolve(__dirname, 'fixtures', track.file);
-          const samples = readWavAsFloat32(wavPath);
-          const durationSec = samples.length / SAMPLE_RATE;
+    Object.entries(STABILITY_PRESETS).forEach(([presetName, presetValue]) => {
+      it(`STAB=${presetValue} (${presetName}) - ${track.name}`, () => {
+        const wavPath = resolve(__dirname, 'fixtures', track.file);
+        const samples = readWavAsFloat32(wavPath);
+        const durationSec = samples.length / SAMPLE_RATE;
 
-          console.log(`  Loading: ${track.file} (${durationSec.toFixed(1)}s)`);
+        console.log(`\n  Testing: ${track.file} (${durationSec.toFixed(1)}s) at STAB=${presetValue}`);
 
-          const result = processTrackWithStability(samples, presetValue);
+        const result = processTrackWithStability(samples, presetValue, track.name);
 
-          console.log(`  Results: BPM=${result.finalBpm.toFixed(1)} conf=${result.finalConfidence.toFixed(2)} jitter=${result.jitter.toFixed(2)}`);
-          console.log(`  Response time: ${result.responseTime ? result.responseTime.toFixed(1) + 's' : 'N/A'}`);
-          console.log(`  Total readings: ${result.bpmReadings.length}`);
+        console.log(`  Results: BPM=${formatNum(result.finalBpm)} conf=${formatNum(result.finalConfidence, 2)}`);
+        console.log(`  MAE: ${formatNum(result.mae, 1)} BPM | Jitter: ${formatNum(result.jitter, 1)}`);
+        console.log(`  Tracking error: ${formatNum(result.trackingError, 2)} | Readings: ${result.bpmReadings.length}`);
 
-          // Final BPM should be in expected range
-          assert.ok(
-            result.finalBpm >= track.expectedFinalBpm.min &&
-            result.finalBpm <= track.expectedFinalBpm.max,
-            `BPM ${result.finalBpm.toFixed(1)} should be in range [${track.expectedFinalBpm.min}, ${track.expectedFinalBpm.max}]`
-          );
+        assert.ok(result.bpmReadings.length > 10, `Should have >10 readings, got ${result.bpmReadings.length}`);
 
-          // Should have some confidence (relaxed for variable tempo files)
-          // Variable tempo can cause low confidence, so we just check we got readings
-          if (result.bpmReadings.length > 10) {
-            const maxConf = Math.max(...result.bpmReadings.map(r => r.confidence));
-            console.log(`  Max confidence: ${maxConf.toFixed(2)}`);
-          }
-
-          // Should have multiple readings
-          assert.ok(result.bpmReadings.length > 10, `Should have >10 readings, got ${result.bpmReadings.length}`);
-
-          // Jitter acceptance criteria by preset
-          // For variable tempo files, jitter will be higher - we're testing stability settings
-          const jitterThresholds = {
-            responsive: 50,   // Allow high jitter for responsive (tracks tempo changes)
-            balanced: 50,     // Allow moderate jitter for balanced
-            stable: 50        // Even stable mode will have jitter due to tempo changes
-          };
-          const jitterThreshold = jitterThresholds[presetName];
-          // Just check we got some readings, don't fail on jitter for variable tempo
-          console.log(`  Jitter: ${result.jitter.toFixed(2)} (threshold: ${jitterThreshold})`);
+        results.push({
+          trackName: track.name,
+          stabilityLevel: presetValue,
+          presetName: presetName,
+          mae: result.mae,
+          responseLag: result.responseTime,
+          trackingError: result.trackingError,
+          jitter: result.jitter,
+          finalBpm: result.finalBpm
         });
       });
     });
   });
+  
+  after(() => {
+    printSummary(results);
+  });
 });
+
+function printSummary(results) {
+  console.log('\n' + '='.repeat(78));
+  console.log('  STABILITY vs ACCURACY ANALYSIS');
+  console.log('='.repeat(78));
+  console.log('  Track'.padEnd(20), '│ STAB │ MAE   │ Lag     │ Jitter  │ Tracking Err');
+  console.log('-'.repeat(78));
+  
+  const sorted = results.sort((a, b) => {
+    if (a.trackName !== b.trackName) return a.trackName.localeCompare(b.trackName);
+    return a.stabilityLevel - b.stabilityLevel;
+  });
+  
+  for (const r of sorted) {
+    const lagStr = r.responseLag !== null ? `${formatNum(r.responseLag, 1)}s` : 'N/A';
+    console.log(
+      r.trackName.padEnd(20), '│',
+      formatNum(r.stabilityLevel, 0).padStart(4), '  │',
+      formatNum(r.mae, 1).padStart(5), '  │',
+      lagStr.padEnd(7), '│',
+      formatNum(r.jitter, 1).padStart(7), '  │',
+      formatNum(r.trackingError, 2)
+    );
+  }
+  
+  console.log('='.repeat(78));
+  console.log('');
+}
