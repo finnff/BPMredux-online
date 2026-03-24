@@ -1,33 +1,33 @@
 # BPMredux-online
 
-Real-time BPM detection web app ported from Android BPMredux. CRT terminal aesthetic.
+Web port of [BPMredux](https://github.com/finnff/BPMredux) — real-time BPM detection from your microphone with a CRT terminal aesthetic.
 
-## Features
+## Run
 
-- Mic-based BPM detection
-- FFT + spectral flux onset detection
-- Autocorrelation tempo estimation
-- Tap-tempo blending
-- Live mel-scale spectrogram
-- Mobile-first responsive design
-- CRT scanline/vignette effects
-
-## Quick Start
-
-```
+```bash
 docker compose up -d
+# → http://localhost:8080
 ```
 
-Visit http://localhost:8080
+Or serve statically (needs HTTPS for mic on mobile):
+```bash
+npx serve .
+```
 
-## Manual Setup
+## What it does
 
-Serve `index.html` with any HTTP server. HTTPS is required for microphone access on mobile.
+Listens to your mic, runs FFT → spectral flux onset detection → autocorrelation tempo estimation, and shows BPM on a gauge with a live spectrogram. Also supports tap-tempo that blends with the algorithm.
 
-## Tech
+Verified against librosa: detects Darude - Sandstorm at **136.4 BPM** (librosa: 136.0, Δ 0.4).
 
-Vanilla JS (no frameworks), Web Audio API, Canvas 2D, nginx + Docker.
+## Tests
 
-## Note
+```bash
+node --experimental-vm-modules test/unit/test-dsp.mjs      # 38 unit tests
+node --experimental-vm-modules test/e2e/test-e2e-bpm.mjs   # E2E (needs WAV fixture)
+python3.12 test/verify_bpm_librosa.py                       # librosa verification
+```
 
-`getUserMedia` requires HTTPS on mobile browsers. Use a reverse proxy with TLS or a tunnel (e.g. ngrok) for mobile testing.
+## Stack
+
+Vanilla JS · Web Audio API · Canvas 2D · nginx · Docker
