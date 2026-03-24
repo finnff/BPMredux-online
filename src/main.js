@@ -66,7 +66,7 @@ const state = {
   activeBands: new Set([BANDS.SUB, BANDS.MID, BANDS.HI]),
   rangeMin: 120,
   rangeMax: 180,
-  amplitudeThreshold: 0.025, // 0..0.5 range, 5/200 = 0.025 default
+  amplitudeThreshold: 0.01, // 0..0.5 range, 2/200 = 0.01 default
   stabilityLevel: 0.9,       // 0..1 range, 90/100 = 0.9 default
   rmsAmplitude: 0,
   magnitudes: null,

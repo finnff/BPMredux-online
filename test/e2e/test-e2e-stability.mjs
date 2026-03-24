@@ -13,7 +13,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { FFTProcessor } from '../../src/audio/fft-processor.js';
-import { BandFilter } from '../../src/audio/band-filter.js';
+import { BandFilter, BANDS } from '../../src/audio/band-filter.js';
 import { OnsetDetector } from '../../src/audio/onset-detector.js';
 import { TempoEstimator } from '../../src/audio/tempo-estimator.js';
 
@@ -24,7 +24,7 @@ const SAMPLE_RATE = 44100;
 const FFT_SIZE = 4096;
 const HOP_SIZE = 1024;
 const ODF_INTERVAL = SAMPLE_RATE / 100; // 441 samples between ODF ticks
-const AMPLITUDE_THRESHOLD = 0.05;
+const AMPLITUDE_THRESHOLD = 0.01;
 
 /**
  * Parse a 16-bit mono PCM WAV file.
@@ -88,6 +88,7 @@ function processTrackWithStability(samples, stabilityLevel) {
   const fftProcessor = new FFTProcessor(FFT_SIZE);
   const bandFilter = new BandFilter();
   const onsetDetector = new OnsetDetector();
+  // BAND NORMALIZATION FIX: Each band now contributes equally regardless of bin count
   const tempoEstimator = new TempoEstimator();
 
   const stabilityValue = stabilityLevel / 100;

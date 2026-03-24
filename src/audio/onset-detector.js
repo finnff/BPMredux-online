@@ -89,18 +89,22 @@ export class OnsetDetector {
   }
 
   /**
-   * Compute combined flux across active bands.
+   * Compute combined flux across active bands (normalized per bin count).
+   * Each band contributes equally regardless of bin count.
    */
   computeFlux(prevMag, currMag) {
     let totalFlux = 0.0;
     if (this.activeBands.has(BANDS.SUB)) {
-      totalFlux += this.bandFlux(prevMag, currMag, BIN_RANGES.SUB.from, BIN_RANGES.SUB.to);
+      const binCount = BIN_RANGES.SUB.to - BIN_RANGES.SUB.from;
+      totalFlux += this.bandFlux(prevMag, currMag, BIN_RANGES.SUB.from, BIN_RANGES.SUB.to) / binCount;
     }
     if (this.activeBands.has(BANDS.MID)) {
-      totalFlux += this.bandFlux(prevMag, currMag, BIN_RANGES.MID.from, BIN_RANGES.MID.to);
+      const binCount = BIN_RANGES.MID.to - BIN_RANGES.MID.from;
+      totalFlux += this.bandFlux(prevMag, currMag, BIN_RANGES.MID.from, BIN_RANGES.MID.to) / binCount;
     }
     if (this.activeBands.has(BANDS.HI)) {
-      totalFlux += this.bandFlux(prevMag, currMag, BIN_RANGES.HI.from, BIN_RANGES.HI.to);
+      const binCount = BIN_RANGES.HI.to - BIN_RANGES.HI.from;
+      totalFlux += this.bandFlux(prevMag, currMag, BIN_RANGES.HI.from, BIN_RANGES.HI.to) / binCount;
     }
     return totalFlux;
   }
