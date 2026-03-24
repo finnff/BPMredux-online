@@ -1,5 +1,9 @@
-// spectrogram.js - Mel-scale spectrogram with CRT teal aesthetic
-import { Black, AccentDim, AccentSubtle, TextSecondary, TextDim, rgba, buildTealLut } from './colors.js';
+/**
+ * Spectrogram — Mel-scale waterfall display with CRT teal aesthetic
+ * Matches Android BPMredux: frequency on X-axis (left=low, right=high),
+ * time scrolling vertically (newest at bottom).
+ */
+import { Black, AccentDim, TextSecondary, TextDim, rgba, buildTealLut } from './colors.js';
 
 const FREQ_BINS = 128;
 const TIME_ROWS = 256;
@@ -7,44 +11,30 @@ const MAX_FREQ = 10000;
 const SAMPLE_RATE = 44100;
 const DB_MIN = -80;
 const DB_MAX = -10;
-const SCANLINE_INTERVAL = 3;
-const SCANLINE_OPACITY = 0.12;
 
-function hzToMel(hz) {
-  return 2595 * Math.log10(1 + hz / 700);
-}
+function hzToMel(hz) { return 2595 * Math.log10(1 + hz / 700); }
+function melToHz(mel) { return 700 * (Math.pow(10, mel / 2595) - 1); }
 
-function melToHz(mel) {
-  return 700 * (Math.pow(10, mel / 2595) - 1);
-}
-
-/**
- * Build mel-scale mapping: for each mel bin (0..FREQ_BINS-1),
- * store the corresponding FFT bin index range.
- */
 function buildMelMapping(fftSize) {
-  const melMin = hzToMel(0);
   const melMax = hzToMel(MAX_FREQ);
-  const mapping = new Array(FREQ_BINS);
   const binHz = SAMPLE_RATE / fftSize;
-
+  const mapping = new Array(FREQ_BINS);
   for (let i = 0; i < FREQ_BINS; i++) {
-    const melLo = melMin + (melMax - melMin) * (i / FREQ_BINS);
-    const melHi = melMin + (melMax - melMin) * ((i + 1) / FREQ_BINS);
+    const melLo = melMax * i / FREQ_BINS;
+    const melHi = melMax * (i + 1) / FREQ_BINS;
     const hzLo = melToHz(melLo);
     const hzHi = melToHz(melHi);
-    const binLo = Math.max(0, Math.floor(hzLo / binHz));
-    const binHi = Math.min(Math.ceil(hzHi / binHz), fftSize / 2);
-    mapping[i] = { binLo, binHi, hzCenter: melToHz((melLo + melHi) / 2) };
+    mapping[i] = {
+      binLo: Math.max(0, Math.floor(hzLo / binHz)),
+      binHi: Math.min(Math.ceil(hzHi / binHz), fftSize / 2),
+    };
   }
   return mapping;
 }
 
 function getMelBinForHz(hz) {
-  const melMin = hzToMel(0);
   const melMax = hzToMel(MAX_FREQ);
-  const mel = hzToMel(hz);
-  return Math.round(((mel - melMin) / (melMax - melMin)) * FREQ_BINS);
+  return Math.round((hzToMel(hz) / melMax) * FREQ_BINS);
 }
 
 export class Spectrogram {
@@ -53,243 +43,205 @@ export class Spectrogram {
     this.ctx = canvas.getContext('2d');
     this.lut = buildTealLut();
     this.melMapping = null;
-    this._currentRow = 0;
+    this._writeRow = 0;
+    this._totalRows = 0;
 
-    // Offscreen bitmap canvas
-    this._offCanvas = document.createElement('canvas');
-    this._offCanvas.width = FREQ_BINS;
-    this._offCanvas.height = TIME_ROWS;
-    this._offCtx = this._offCanvas.getContext('2d');
-    this._imageData = this._offCtx.createImageData(FREQ_BINS, 1);
+    // Offscreen bitmap: x = freq bin, y = time row
+    this._off = document.createElement('canvas');
+    this._off.width = FREQ_BINS;
+    this._off.height = TIME_ROWS;
+    this._offCtx = this._off.getContext('2d');
+    this._rowData = this._offCtx.createImageData(FREQ_BINS, 1);
 
-    // Band boundaries (mel bin indices)
+    // Band boundaries in mel-bin space
     this._subMidBin = getMelBinForHz(150);
     this._midHiBin = getMelBinForHz(2000);
+
+    // Cached noise pattern
+    this._noisePattern = null;
   }
 
   /**
-   * Add one column (time row) of magnitude data.
-   * @param {Float32Array} magnitudes - raw FFT magnitude data (linear scale or dB)
+   * Add one time row of magnitude data.
+   * Layout: x=freq bin (0=low freq), y=time (scrolling down)
    */
   addColumn(magnitudes) {
-    // Lazy-init mel mapping based on incoming data size
-    if (!this.melMapping || this._lastFftSize !== magnitudes.length * 2) {
-      this._lastFftSize = magnitudes.length * 2;
-      this.melMapping = buildMelMapping(this._lastFftSize);
+    if (!this.melMapping || this._lastFftHalf !== magnitudes.length) {
+      this._lastFftHalf = magnitudes.length;
+      this.melMapping = buildMelMapping(magnitudes.length * 2);
     }
 
-    const pixels = this._imageData.data;
+    const px = this._rowData.data;
     const lut = this.lut;
 
     for (let i = 0; i < FREQ_BINS; i++) {
       const { binLo, binHi } = this.melMapping[i];
-      // Average magnitudes across the mel bin range
-      let sum = 0;
-      let count = 0;
+      let sum = 0, count = 0;
       for (let b = binLo; b < binHi && b < magnitudes.length; b++) {
         sum += magnitudes[b];
         count++;
       }
       const avg = count > 0 ? sum / count : 0;
-
-      // Convert to dB
       const db = avg > 0 ? 20 * Math.log10(avg) : DB_MIN;
       const norm = Math.max(0, Math.min(1, (db - DB_MIN) / (DB_MAX - DB_MIN)));
-      const lutIdx = Math.round(norm * 255);
+      const li = Math.round(norm * 255);
 
-      // Frequency bins go bottom-to-top, pixel x goes left-to-right
-      const px = i;
-      pixels[px * 4] = lut[lutIdx * 3];
-      pixels[px * 4 + 1] = lut[lutIdx * 3 + 1];
-      pixels[px * 4 + 2] = lut[lutIdx * 3 + 2];
-      pixels[px * 4 + 3] = 255;
+      px[i * 4]     = lut[li * 3];
+      px[i * 4 + 1] = lut[li * 3 + 1];
+      px[i * 4 + 2] = lut[li * 3 + 2];
+      px[i * 4 + 3] = 255;
     }
 
-    this._offCtx.putImageData(this._imageData, 0, this._currentRow);
-    this._currentRow = (this._currentRow + 1) % TIME_ROWS;
+    this._offCtx.putImageData(this._rowData, 0, this._writeRow);
+    this._writeRow = (this._writeRow + 1) % TIME_ROWS;
+    this._totalRows++;
   }
 
-  /** Render the spectrogram to the visible canvas. */
   render() {
     const { w, h } = this._setupDpi();
     const ctx = this.ctx;
 
-    // Clear
     ctx.fillStyle = Black;
     ctx.fillRect(0, 0, w, h);
-
-    // Draw offscreen bitmap with vertical scroll wrap.
-    // Newest row at bottom: the current row pointer is the next write position,
-    // so rows from _currentRow..TIME_ROWS-1 are oldest, 0.._currentRow-1 are newest.
-    // We rotate the bitmap so frequency is on y-axis (low=bottom) and time on x-axis.
-
-    ctx.save();
     ctx.imageSmoothingEnabled = false;
 
-    // We draw the offscreen canvas rotated: each "row" in offscreen becomes a column on screen.
-    // Offscreen: x=freq bin, y=time row
-    // Screen: x=time (left=old, right=new), y=freq (bottom=low, top=high)
+    // Draw the waterfall: newest row at bottom of screen.
+    // The offscreen buffer is a circular buffer with _writeRow pointing to the next write slot.
+    // Rows from _writeRow..TIME_ROWS-1 are oldest, 0.._writeRow-1 are newest.
+    // We draw them top-to-bottom (old at top, new at bottom).
+    // Freq is on X-axis (left=low, right=high).
 
-    const oldRows = TIME_ROWS - this._currentRow;
-    const newRows = this._currentRow;
+    const filled = Math.min(this._totalRows, TIME_ROWS);
+    if (filled === 0) return;
 
-    // Older portion (from _currentRow to end)
-    if (oldRows > 0) {
-      // Source: sx=0, sy=_currentRow, sw=FREQ_BINS, sh=oldRows
-      // Dest: draw so time goes left-right, freq bottom-to-top
-      // We need to rotate 90 degrees CW and flip freq axis
-      this._drawRotatedSection(ctx, this._currentRow, oldRows, 0, w, h);
+    const rowH = h / TIME_ROWS;
+
+    if (this._totalRows >= TIME_ROWS) {
+      // Full buffer: draw old portion (from _writeRow to end) at top
+      const oldRows = TIME_ROWS - this._writeRow;
+      if (oldRows > 0) {
+        ctx.drawImage(this._off,
+          0, this._writeRow, FREQ_BINS, oldRows,  // src
+          0, 0, w, oldRows * rowH                  // dest
+        );
+      }
+      // Then new portion (from 0 to _writeRow) at bottom
+      if (this._writeRow > 0) {
+        ctx.drawImage(this._off,
+          0, 0, FREQ_BINS, this._writeRow,                        // src
+          0, oldRows * rowH, w, this._writeRow * rowH             // dest
+        );
+      }
+    } else {
+      // Partial fill: draw available rows at bottom of screen
+      const startY = h - filled * rowH;
+      ctx.drawImage(this._off,
+        0, 0, FREQ_BINS, filled,         // src
+        0, startY, w, filled * rowH      // dest
+      );
     }
 
-    // Newer portion (from 0 to _currentRow)
-    if (newRows > 0) {
-      this._drawRotatedSection(ctx, 0, newRows, oldRows, w, h);
-    }
-
-    ctx.restore();
-
-    // --- Noise grain overlay ---
-    this._drawNoise(ctx, w, h);
-
-    // --- Edge fades ---
+    // ── Overlays ──
     this._drawEdgeFades(ctx, w, h);
-
-    // --- Band boundary lines and labels ---
     this._drawBandBoundaries(ctx, w, h);
-
-    // --- Scanline overlay ---
+    this._drawNoise(ctx, w, h);
     this._drawScanlines(ctx, w, h);
-  }
 
-  /**
-   * Draw a section of the offscreen canvas rotated 90 degrees.
-   * Offscreen row = time, offscreen x = freq bin (0=low freq).
-   * On screen: x = time, y = freq (0=high freq at top, FREQ_BINS=low freq at bottom).
-   */
-  _drawRotatedSection(ctx, srcRow, srcRows, destTimeOffset, canvasW, canvasH) {
-    const colW = canvasW / TIME_ROWS;
-    const destX = destTimeOffset * colW;
-    const destW = srcRows * colW;
-
-    // We draw the offscreen portion transposed:
-    // offscreen (x=freq, y=time) -> screen (x=time, y=freq flipped)
-    ctx.save();
-    // Translate to destination, then rotate
-    ctx.translate(destX, canvasH);
-    ctx.scale(colW, -canvasH / FREQ_BINS);
-    // Now drawing in offscreen coordinates where x maps to time-offset, y maps to freq bin
-    // drawImage source: freq on x (0..FREQ_BINS), time slice on y
-    ctx.drawImage(
-      this._offCanvas,
-      0, srcRow, FREQ_BINS, srcRows, // source rect
-      0, 0, srcRows, FREQ_BINS       // dest rect (will be scaled)
-    );
-    ctx.restore();
+    // Border
+    ctx.strokeStyle = rgba(TextDim, 0.4);
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0, 0, w, h);
   }
 
   _drawNoise(ctx, w, h) {
-    // Cache noise pattern on first call
     if (!this._noisePattern) {
-      const noiseCanvas = document.createElement('canvas');
-      noiseCanvas.width = 64;
-      noiseCanvas.height = 64;
-      const nCtx = noiseCanvas.getContext('2d');
-      const nData = nCtx.createImageData(64, 64);
-      for (let i = 0; i < nData.data.length; i += 4) {
-        const v = Math.random() * 20;
-        nData.data[i] = v;
-        nData.data[i + 1] = v;
-        nData.data[i + 2] = v;
-        nData.data[i + 3] = 12;
+      const nc = document.createElement('canvas');
+      nc.width = 64; nc.height = 64;
+      const nctx = nc.getContext('2d');
+      const nd = nctx.createImageData(64, 64);
+      for (let i = 0; i < nd.data.length; i += 4) {
+        const v = Math.random() * 18;
+        nd.data[i] = 0; nd.data[i+1] = v; nd.data[i+2] = v; nd.data[i+3] = 10;
       }
-      nCtx.putImageData(nData, 0, 0);
-      this._noisePattern = ctx.createPattern(noiseCanvas, 'repeat');
+      nctx.putImageData(nd, 0, 0);
+      this._noisePattern = ctx.createPattern(nc, 'repeat');
     }
     ctx.save();
-    ctx.globalAlpha = 0.3;
+    ctx.globalAlpha = 0.4;
     ctx.fillStyle = this._noisePattern;
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
   }
 
   _drawEdgeFades(ctx, w, h) {
-    const fadeV = h * 0.08;
-    const fadeH = w * 0.05;
+    const fV = h * 0.08, fH = w * 0.05;
 
-    // Top fade
-    const topGrad = ctx.createLinearGradient(0, 0, 0, fadeV);
-    topGrad.addColorStop(0, rgba(Black, 0.9));
-    topGrad.addColorStop(1, rgba(Black, 0));
-    ctx.fillStyle = topGrad;
-    ctx.fillRect(0, 0, w, fadeV);
+    // Top
+    const tg = ctx.createLinearGradient(0, 0, 0, fV);
+    tg.addColorStop(0, rgba(Black, 0.85));
+    tg.addColorStop(1, rgba(Black, 0));
+    ctx.fillStyle = tg;
+    ctx.fillRect(0, 0, w, fV);
 
-    // Bottom fade
-    const botGrad = ctx.createLinearGradient(0, h - fadeV, 0, h);
-    botGrad.addColorStop(0, rgba(Black, 0));
-    botGrad.addColorStop(1, rgba(Black, 0.9));
-    ctx.fillStyle = botGrad;
-    ctx.fillRect(0, h - fadeV, w, fadeV);
+    // Bottom
+    const bg = ctx.createLinearGradient(0, h - fV, 0, h);
+    bg.addColorStop(0, rgba(Black, 0));
+    bg.addColorStop(1, rgba(Black, 0.85));
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, h - fV, w, fV);
 
-    // Left fade
-    const leftGrad = ctx.createLinearGradient(0, 0, fadeH, 0);
-    leftGrad.addColorStop(0, rgba(Black, 0.9));
-    leftGrad.addColorStop(1, rgba(Black, 0));
-    ctx.fillStyle = leftGrad;
-    ctx.fillRect(0, 0, fadeH, h);
+    // Left
+    const lg = ctx.createLinearGradient(0, 0, fH, 0);
+    lg.addColorStop(0, rgba(Black, 0.8));
+    lg.addColorStop(1, rgba(Black, 0));
+    ctx.fillStyle = lg;
+    ctx.fillRect(0, 0, fH, h);
 
-    // Right fade
-    const rightGrad = ctx.createLinearGradient(w - fadeH, 0, w, 0);
-    rightGrad.addColorStop(0, rgba(Black, 0));
-    rightGrad.addColorStop(1, rgba(Black, 0.9));
-    ctx.fillStyle = rightGrad;
-    ctx.fillRect(w - fadeH, 0, fadeH, h);
+    // Right
+    const rg = ctx.createLinearGradient(w - fH, 0, w, 0);
+    rg.addColorStop(0, rgba(Black, 0));
+    rg.addColorStop(1, rgba(Black, 0.8));
+    ctx.fillStyle = rg;
+    ctx.fillRect(w - fH, 0, fH, h);
   }
 
   _drawBandBoundaries(ctx, w, h) {
-    // Freq bin 0 = low freq at bottom of screen
-    // y position for a freq bin: y = h - (bin / FREQ_BINS) * h
-    const subMidY = h - (this._subMidBin / FREQ_BINS) * h;
-    const midHiY = h - (this._midHiBin / FREQ_BINS) * h;
+    // Band boundaries as vertical lines (freq on X-axis)
+    const subMidX = (this._subMidBin / FREQ_BINS) * w;
+    const midHiX = (this._midHiBin / FREQ_BINS) * w;
 
-    ctx.setLineDash([4, 4]);
+    ctx.save();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 0.15;
+    ctx.strokeStyle = AccentDim;
     ctx.lineWidth = 1;
 
-    // Sub/Mid boundary
     ctx.beginPath();
-    ctx.moveTo(0, subMidY);
-    ctx.lineTo(w, subMidY);
-    ctx.strokeStyle = rgba(TextDim, 0.5);
+    ctx.moveTo(subMidX, 0); ctx.lineTo(subMidX, h);
     ctx.stroke();
 
-    // Mid/Hi boundary
     ctx.beginPath();
-    ctx.moveTo(0, midHiY);
-    ctx.lineTo(w, midHiY);
-    ctx.strokeStyle = rgba(TextDim, 0.5);
+    ctx.moveTo(midHiX, 0); ctx.lineTo(midHiX, h);
     ctx.stroke();
 
-    ctx.setLineDash([]);
+    ctx.restore();
 
-    // Labels
-    const fontSize = Math.max(9, Math.min(12, w * 0.03));
-    ctx.font = `${fontSize}px monospace`;
-    ctx.fillStyle = rgba(TextSecondary, 0.5);
-    ctx.textAlign = 'left';
+    // Labels at bottom
+    const fs = Math.max(8, Math.min(11, w * 0.03));
+    ctx.font = `${fs}px 'Share Tech Mono', monospace`;
+    ctx.fillStyle = rgba(AccentDim, 0.35);
     ctx.textBaseline = 'bottom';
+    const ly = h - 4;
 
-    const labelX = 6;
-    // SUB label below subMid line
-    ctx.fillText('SUB', labelX, subMidY - 3);
-    // MID label below midHi line
-    ctx.fillText('MID', labelX, midHiY - 3);
-    // HI label near top
-    ctx.textBaseline = 'top';
-    ctx.fillText('HI', labelX, midHiY + 3);
+    ctx.textAlign = 'center';
+    ctx.fillText('SUB', subMidX / 2, ly);
+    ctx.fillText('MID', (subMidX + midHiX) / 2, ly);
+    ctx.fillText('HI', (midHiX + w) / 2, ly);
   }
 
   _drawScanlines(ctx, w, h) {
-    ctx.fillStyle = rgba(Black, SCANLINE_OPACITY);
-    for (let y = 0; y < h; y += SCANLINE_INTERVAL) {
+    ctx.fillStyle = rgba(Black, 0.1);
+    for (let y = 0; y < h; y += 3) {
       ctx.fillRect(0, y, w, 1);
     }
   }
@@ -299,9 +251,9 @@ export class Spectrogram {
     const rect = this.canvas.getBoundingClientRect();
     const w = rect.width;
     const h = rect.height;
-    if (this.canvas.width !== w * dpr || this.canvas.height !== h * dpr) {
-      this.canvas.width = w * dpr;
-      this.canvas.height = h * dpr;
+    if (this.canvas.width !== Math.round(w * dpr) || this.canvas.height !== Math.round(h * dpr)) {
+      this.canvas.width = Math.round(w * dpr);
+      this.canvas.height = Math.round(h * dpr);
       this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
     return { w, h };

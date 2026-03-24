@@ -17,8 +17,6 @@ const $ = id => document.getElementById(id);
 const dom = {
   app:            $('app'),
   gaugeCanvas:    $('bpm-gauge'),
-  bpmValue:       $('bpm-value'),
-  bpmReadout:     $('bpm-display'),
   spectroCanvas:  $('spectrogram'),
   tapArea:        $('tap-area'),
   tapText:        $('tap-text'),
@@ -28,7 +26,8 @@ const dom = {
   bandHi:         $('band-hi'),
   rangeMin:       $('bpm-range-min'),
   rangeMax:       $('bpm-range-max'),
-  rangeDisplay:   $('range-display'),
+  rangeMinLabel:  $('range-min-label'),
+  rangeMaxLabel:  $('range-max-label'),
   rangeTrack:     $('range-track'),
   threshold:      $('threshold-slider'),
   thresholdValue: $('threshold-value'),
@@ -140,18 +139,7 @@ function processFrame(samples) {
 // ===== Render Loop (60fps) =====
 let rafId = null;
 function renderLoop() {
-  // Update BPM readout
-  if (state.bpm > 0 && state.running) {
-    const bpmStr = state.bpm.toFixed(1);
-    const suffix = state.isAtRangeLimit ? '+' : '';
-    dom.bpmValue.textContent = bpmStr + suffix;
-    dom.bpmValue.style.opacity = (0.3 + 0.7 * state.confidence).toFixed(2);
-  } else if (!state.running) {
-    dom.bpmValue.textContent = '---';
-    dom.bpmValue.style.opacity = '0.3';
-  }
-
-  // Render gauge
+  // Render gauge (BPM number is drawn on canvas now)
   bpmGauge.render({
     bpm: state.bpm,
     confidence: state.confidence,
@@ -201,7 +189,8 @@ function updateRangeTrack() {
     var(--accent-dim) ${pctMin}%,
     var(--accent-dim) ${pctMax}%,
     var(--text-dim) ${pctMax}%)`;
-  dom.rangeDisplay.textContent = `${min} – ${max}`;
+  dom.rangeMinLabel.textContent = min;
+  dom.rangeMaxLabel.textContent = max;
   state.rangeMin = min;
   state.rangeMax = max;
   tempoEstimator.bpmRangeMin = min;

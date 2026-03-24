@@ -1,5 +1,5 @@
 /* ============================================
-   BPMredux - CRT Terminal Aesthetic
+   BPMredux-online — CRT Terminal Aesthetic
    Mobile-first, full viewport, no scroll
    ============================================ */
 
@@ -45,8 +45,8 @@ html, body {
     to bottom,
     transparent 0px,
     transparent 2px,
-    rgba(0, 0, 0, 0.15) 2px,
-    rgba(0, 0, 0, 0.15) 4px
+    rgba(0, 0, 0, 0.12) 2px,
+    rgba(0, 0, 0, 0.12) 4px
   );
 }
 
@@ -62,7 +62,7 @@ html, body {
 }
 
 /* ============================================
-   App Grid Layout - Mobile First
+   App Grid Layout — Mobile portrait
    ============================================ */
 .app-grid {
   display: grid;
@@ -70,30 +70,24 @@ html, body {
   height: 100dvh;
   padding: 4px;
   gap: 3px;
-  grid-template-columns: 1fr auto;
-  grid-template-rows: 35fr 25fr 12fr auto auto auto;
+  grid-template-columns: 1fr 48px;
+  grid-template-rows: 38fr 22fr auto 14fr auto auto;
   grid-template-areas:
     "gauge      threshold"
     "spectro    threshold"
+    "bands      threshold"
     "tap        threshold"
-    "bands      bands"
     "range      range"
     "controls   controls";
 }
 
 /* ============================================
-   Gauge Section (BPM arc)
+   Gauge Section (BPM arc + number)
    ============================================ */
 .gauge-section {
   grid-area: gauge;
   position: relative;
   min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface);
-  border: 1px solid var(--accent-subtle);
-  border-radius: 2px;
   overflow: hidden;
 }
 
@@ -103,52 +97,12 @@ html, body {
   display: block;
 }
 
-.bpm-readout {
-  position: absolute;
-  bottom: 10%;
-  left: 50%;
-  transform: translateX(-50%);
-  text-align: center;
-  pointer-events: none;
-}
-
-.bpm-value {
-  display: block;
-  font-size: clamp(2rem, 8vw, 4rem);
-  color: var(--accent);
-  text-shadow: var(--glow-strong);
-  line-height: 1;
-  letter-spacing: 0.05em;
-}
-
-.bpm-label {
-  display: block;
-  font-size: 0.7rem;
-  color: var(--text-secondary);
-  letter-spacing: 0.3em;
-  margin-top: 2px;
-}
-
-/* Beat pulse animation on bpm-value */
-@keyframes beat-pulse {
-  0% { transform: translateX(-50%) scale(1); }
-  15% { transform: translateX(-50%) scale(1.08); }
-  100% { transform: translateX(-50%) scale(1); }
-}
-
-.bpm-readout.pulse {
-  animation: beat-pulse 0.15s ease-out;
-}
-
 /* ============================================
    Spectrogram Section
    ============================================ */
 .spectrogram-section {
   grid-area: spectro;
   min-height: 0;
-  background: var(--surface);
-  border: 1px solid var(--accent-subtle);
-  border-radius: 2px;
   overflow: hidden;
 }
 
@@ -156,58 +110,6 @@ html, body {
   width: 100%;
   height: 100%;
   display: block;
-}
-
-/* ============================================
-   Tap Area
-   ============================================ */
-.tap-section {
-  grid-area: tap;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface);
-  border: 1px solid var(--accent-subtle);
-  border-radius: 2px;
-  cursor: pointer;
-  user-select: none;
-  min-height: 48px;
-  transition: background 0.06s, border-color 0.06s;
-  -webkit-user-select: none;
-}
-
-.tap-section:active,
-.tap-section.flash {
-  background: var(--accent-subtle);
-  border-color: var(--accent-dim);
-}
-
-@keyframes tap-flash {
-  0% { background: rgba(0, 229, 255, 0.15); }
-  100% { background: var(--surface); }
-}
-
-.tap-section.flash {
-  animation: tap-flash 0.2s ease-out;
-}
-
-.tap-inner {
-  text-align: center;
-  pointer-events: none;
-}
-
-.tap-text {
-  display: block;
-  font-size: clamp(1rem, 4vw, 1.6rem);
-  color: var(--text-primary);
-  letter-spacing: 0.2em;
-}
-
-.tap-bpm {
-  display: block;
-  font-size: 0.8rem;
-  color: var(--accent-dim);
-  min-height: 1.2em;
 }
 
 /* ============================================
@@ -226,13 +128,14 @@ html, body {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 44px;
+  height: 32px;
+  min-height: 32px;
   background: var(--surface);
   border: 1px solid var(--text-dim);
   border-radius: 2px;
   color: var(--text-secondary);
   font-family: var(--font-mono);
-  font-size: clamp(0.7rem, 2.5vw, 0.9rem);
+  font-size: clamp(0.65rem, 2.5vw, 0.85rem);
   letter-spacing: 0.15em;
   cursor: pointer;
   transition: all 0.12s;
@@ -243,8 +146,8 @@ html, body {
 
 .band-btn .led {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--text-dim);
   transition: all 0.12s;
@@ -254,12 +157,12 @@ html, body {
 .band-btn.active {
   border-color: var(--accent-dim);
   color: var(--accent);
-  box-shadow: 0 0 6px rgba(0, 229, 255, 0.2);
+  box-shadow: 0 0 6px rgba(0, 229, 255, 0.15);
 }
 
 .band-btn.active .led {
   background: var(--accent);
-  box-shadow: 0 0 6px var(--accent), 0 0 12px rgba(0, 229, 255, 0.4);
+  box-shadow: 0 0 4px var(--accent), 0 0 10px rgba(0, 229, 255, 0.4);
 }
 
 .band-btn:active {
@@ -268,30 +171,96 @@ html, body {
 }
 
 /* ============================================
-   Dual-Thumb BPM Range Slider
+   Tap Area
+   ============================================ */
+.tap-section {
+  grid-area: tap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: 1px solid var(--accent-subtle);
+  border-radius: 2px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  min-height: 48px;
+  transition: background 0.06s, border-color 0.06s;
+}
+
+.tap-section:active,
+.tap-section.flash {
+  background: var(--accent-subtle);
+  border-color: var(--accent-dim);
+}
+
+@keyframes tap-flash {
+  0% { background: rgba(0, 229, 255, 0.12); }
+  100% { background: var(--surface); }
+}
+
+.tap-section.flash {
+  animation: tap-flash 0.2s ease-out;
+}
+
+.tap-inner {
+  text-align: center;
+  pointer-events: none;
+}
+
+.tap-label {
+  display: block;
+  font-size: 0.5rem;
+  color: var(--text-dim);
+  letter-spacing: 0.2em;
+  margin-bottom: 1px;
+}
+
+.tap-text {
+  display: block;
+  font-size: clamp(0.9rem, 4vw, 1.4rem);
+  color: var(--text-primary);
+  letter-spacing: 0.2em;
+}
+
+.tap-bpm {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--accent-dim);
+  min-height: 1.1em;
+  opacity: 0.7;
+}
+
+/* ============================================
+   BPM Range Slider (dual-thumb)
    ============================================ */
 .range-section {
   grid-area: range;
-  padding: 2px 0;
+  padding: 2px 6px;
 }
 
-.range-label {
+.range-header {
   display: flex;
   justify-content: space-between;
-  font-size: 0.65rem;
-  color: var(--text-secondary);
-  letter-spacing: 0.1em;
-  margin-bottom: 4px;
-  padding: 0 2px;
+  align-items: center;
+  margin-bottom: 2px;
 }
 
-.range-values {
+.range-title {
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  letter-spacing: 0.15em;
+}
+
+.range-val {
+  font-size: 0.75rem;
   color: var(--accent-dim);
+  opacity: 0.8;
 }
 
 .dual-range-container {
   position: relative;
-  height: 36px;
+  height: 32px;
   display: flex;
   align-items: center;
 }
@@ -300,26 +269,16 @@ html, body {
   position: absolute;
   left: 0;
   right: 0;
-  height: 4px;
+  height: 3px;
   background: var(--text-dim);
   border-radius: 2px;
   pointer-events: none;
 }
 
-.range-track::after {
-  content: '';
-  position: absolute;
-  height: 100%;
-  background: var(--accent-dim);
-  border-radius: 2px;
-  left: 0%;
-  right: 0%;
-}
-
 .range-input {
   position: absolute;
   width: 100%;
-  height: 36px;
+  height: 32px;
   -webkit-appearance: none;
   appearance: none;
   background: transparent;
@@ -328,7 +287,7 @@ html, body {
 }
 
 .range-input::-webkit-slider-runnable-track {
-  height: 4px;
+  height: 3px;
   background: transparent;
   border: none;
 }
@@ -336,15 +295,15 @@ html, body {
 .range-input::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: var(--surface);
   border: 2px solid var(--accent-dim);
   cursor: pointer;
   pointer-events: auto;
   margin-top: -9px;
-  box-shadow: 0 0 6px rgba(0, 229, 255, 0.3);
+  box-shadow: 0 0 4px rgba(0, 229, 255, 0.25);
   transition: border-color 0.12s, box-shadow 0.12s;
 }
 
@@ -354,20 +313,20 @@ html, body {
 }
 
 .range-input::-moz-range-track {
-  height: 4px;
+  height: 3px;
   background: transparent;
   border: none;
 }
 
 .range-input::-moz-range-thumb {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: var(--surface);
   border: 2px solid var(--accent-dim);
   cursor: pointer;
   pointer-events: auto;
-  box-shadow: 0 0 6px rgba(0, 229, 255, 0.3);
+  box-shadow: 0 0 4px rgba(0, 229, 255, 0.25);
 }
 
 .range-input::-moz-range-thumb:active {
@@ -375,7 +334,6 @@ html, body {
   box-shadow: var(--glow-strong);
 }
 
-/* Ensure max slider thumb stays on top */
 .range-min { z-index: 1; }
 .range-max { z-index: 2; }
 
@@ -387,24 +345,24 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4px 0;
+  padding: 3px 0;
 }
 
 .start-btn {
   width: 100%;
-  min-height: 48px;
+  min-height: 44px;
   background: var(--surface);
   border: 2px solid var(--accent-dim);
   border-radius: 3px;
   color: var(--accent);
   font-family: var(--font-mono);
-  font-size: clamp(0.9rem, 3vw, 1.1rem);
+  font-size: clamp(0.85rem, 3vw, 1rem);
   letter-spacing: 0.2em;
   cursor: pointer;
   transition: all 0.15s;
   user-select: none;
   -webkit-user-select: none;
-  box-shadow: 0 0 10px rgba(0, 229, 255, 0.15), inset 0 0 10px rgba(0, 229, 255, 0.05);
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.12), inset 0 0 8px rgba(0, 229, 255, 0.04);
 }
 
 .start-btn:hover {
@@ -420,7 +378,7 @@ html, body {
 .start-btn.active {
   border-color: #ff3b3b;
   color: #ff3b3b;
-  box-shadow: 0 0 10px rgba(255, 59, 59, 0.3), inset 0 0 10px rgba(255, 59, 59, 0.05);
+  box-shadow: 0 0 8px rgba(255, 59, 59, 0.25), inset 0 0 8px rgba(255, 59, 59, 0.04);
 }
 
 .start-btn.active:hover {
@@ -428,7 +386,7 @@ html, body {
 }
 
 /* ============================================
-   Amplitude Threshold Slider (vertical)
+   Amplitude Threshold Slider (vertical, right)
    ============================================ */
 .threshold-section {
   grid-area: threshold;
@@ -436,18 +394,17 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 4px;
+  padding: 8px 2px;
   background: var(--surface);
   border: 1px solid var(--accent-subtle);
   border-radius: 2px;
-  width: 40px;
+  width: 48px;
 }
 
 .threshold-label {
   font-size: 0.55rem;
   color: var(--text-secondary);
   letter-spacing: 0.15em;
-  writing-mode: horizontal-tb;
 }
 
 .threshold-slider {
@@ -455,14 +412,13 @@ html, body {
   direction: rtl;
   -webkit-appearance: none;
   appearance: none;
-  width: 28px;
+  width: 36px;
   flex: 1;
-  margin: 4px 0;
+  margin: 6px 0;
   background: transparent;
   cursor: pointer;
 }
 
-/* Webkit vertical slider */
 .threshold-slider::-webkit-slider-runnable-track {
   width: 4px;
   background: var(--text-dim);
@@ -480,7 +436,6 @@ html, body {
   box-shadow: 0 0 4px rgba(0, 229, 255, 0.3);
 }
 
-/* Firefox vertical slider */
 .threshold-slider::-moz-range-track {
   width: 4px;
   background: var(--text-dim);
@@ -498,74 +453,28 @@ html, body {
 
 .threshold-value {
   font-size: 0.55rem;
-  color: var(--accent-dim);
+  color: var(--text-dim);
 }
 
 /* ============================================
-   Desktop Layout (>768px)
+   Desktop: wider layout
    ============================================ */
-@media (min-width: 769px) {
+@media (min-width: 768px) {
   .app-grid {
-    max-width: 900px;
+    max-width: 600px;
     margin: 0 auto;
-    padding: 8px;
-    gap: 6px;
-    grid-template-columns: 1fr 50px;
-    grid-template-rows: 35fr 25fr 12fr auto auto auto;
-  }
-
-  .threshold-section {
-    width: 50px;
-  }
-
-  .bpm-value {
-    font-size: clamp(2.5rem, 6vw, 5rem);
-  }
-
-  .band-btn {
-    min-height: 48px;
-  }
-
-  .start-btn {
-    min-height: 52px;
   }
 }
 
-/* ============================================
-   Landscape phone
-   ============================================ */
+/* Landscape phone */
 @media (max-height: 500px) and (orientation: landscape) {
   .app-grid {
-    grid-template-rows: 30fr 25fr 10fr auto auto auto;
-    gap: 2px;
-    padding: 2px;
+    grid-template-columns: 1fr 1fr 48px;
+    grid-template-rows: 1fr auto auto auto;
+    grid-template-areas:
+      "gauge     spectro   threshold"
+      "bands     tap       threshold"
+      "range     range     range"
+      "controls  controls  controls";
   }
-
-  .bpm-value {
-    font-size: 1.8rem;
-  }
-
-  .band-btn,
-  .start-btn {
-    min-height: 36px;
-  }
-}
-
-/* ============================================
-   Utility / Animation Classes
-   ============================================ */
-@keyframes glow-pulse {
-  0%, 100% { box-shadow: 0 0 8px rgba(0, 229, 255, 0.2); }
-  50% { box-shadow: 0 0 16px rgba(0, 229, 255, 0.5); }
-}
-
-.listening .gauge-section {
-  border-color: var(--accent-dim);
-  animation: glow-pulse 2s ease-in-out infinite;
-}
-
-/* Focus styles for accessibility */
-*:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }

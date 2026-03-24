@@ -21,26 +21,14 @@
   <div id="vignette" class="vignette"></div>
 
   <div id="app" class="app-grid">
-    <!-- BPM Gauge Canvas -->
+    <!-- BPM Gauge Canvas (renders BPM number + arc + stats internally) -->
     <section class="gauge-section">
       <canvas id="bpm-gauge" class="gauge-canvas"></canvas>
-      <div id="bpm-display" class="bpm-readout">
-        <span id="bpm-value" class="bpm-value">---</span>
-        <span class="bpm-label">BPM</span>
-      </div>
     </section>
 
     <!-- Spectrogram Canvas -->
     <section class="spectrogram-section">
       <canvas id="spectrogram" class="spectrogram-canvas"></canvas>
-    </section>
-
-    <!-- Tap Area -->
-    <section id="tap-area" class="tap-section" role="button" tabindex="0" aria-label="Tap to set BPM">
-      <div class="tap-inner">
-        <span id="tap-text" class="tap-text">TAP</span>
-        <span id="tap-bpm" class="tap-bpm"></span>
-      </div>
     </section>
 
     <!-- Band Toggle Row -->
@@ -59,11 +47,21 @@
       </button>
     </section>
 
+    <!-- Tap Area -->
+    <section id="tap-area" class="tap-section" role="button" tabindex="0" aria-label="Tap to set BPM">
+      <div class="tap-inner">
+        <span class="tap-label">MANUAL INPUT</span>
+        <span id="tap-text" class="tap-text">TAP</span>
+        <span id="tap-bpm" class="tap-bpm"></span>
+      </div>
+    </section>
+
     <!-- BPM Range Slider (dual-thumb) -->
     <section class="range-section">
-      <div class="range-label">
-        <span>BPM RANGE</span>
-        <span id="range-display" class="range-values">120 – 180</span>
+      <div class="range-header">
+        <span class="range-val" id="range-min-label">120</span>
+        <span class="range-title">RANGE</span>
+        <span class="range-val" id="range-max-label">180</span>
       </div>
       <div class="dual-range-container">
         <div id="range-track" class="range-track"></div>
@@ -81,13 +79,12 @@
 
     <!-- Amplitude Threshold Slider (vertical, right side) -->
     <aside class="threshold-section">
-      <label for="threshold-slider" class="threshold-label">THR</label>
+      <label class="threshold-label">THR</label>
       <input type="range" id="threshold-slider" class="threshold-slider" min="0" max="100" value="30" step="1" orient="vertical" aria-label="Amplitude threshold">
       <span id="threshold-value" class="threshold-value">30</span>
     </aside>
   </div>
 
-  <!-- ES6 Module Scripts -->
   <script type="module" src="src/main.js"></script>
 </body>
 </html>
