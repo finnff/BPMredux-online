@@ -164,28 +164,6 @@ export class BpmGauge {
       ctx.fill();
     }
 
-    // ── Bottom stats row: FREQ | confidence % ──
-    const statsY = h - 10;
-    const statsFont = Math.max(9, Math.min(12, h * 0.04));
-    ctx.font = `${statsFont}px 'Share Tech Mono', monospace`;
-    ctx.textBaseline = 'bottom';
-
-    // Peak freq (left)
-    if (peakFreq != null && peakFreq > 0) {
-      const freqStr = peakFreq >= 1000
-        ? (peakFreq / 1000).toFixed(1) + 'kHz'
-        : Math.round(peakFreq) + 'Hz';
-      ctx.fillStyle = rgba(AccentDim, 0.7);
-      ctx.textAlign = 'left';
-      ctx.fillText('FREQ ' + freqStr, 10, statsY);
-    }
-
-    // Confidence (right)
-    const confPct = Math.round(confidence * 100);
-    ctx.fillStyle = rgba(AccentDim, 0.7);
-    ctx.textAlign = 'right';
-    ctx.fillText(confPct + '%', w - 10, statsY);
-
     // ── Scanline overlay ──
     ctx.fillStyle = rgba(Black, 0.07);
     for (let y = 0; y < h; y += 3) {

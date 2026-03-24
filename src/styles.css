@@ -1,6 +1,14 @@
 /* ============================================
    BPMredux-online — CRT Terminal Aesthetic
    Mobile-first, full viewport, no scroll
+   Matches Android Kotlin layout exactly:
+     Row 1: [THR slider (left, narrow)] [BPM gauge (fills rest)]
+     Row 2: Range slider (full width)
+     Row 3: Spectrogram (full width)
+     Row 4: Band toggles (SUB/MID/HI)
+     Row 5: Tap area
+     Row 6: Stats (FREQ / SIG / CONF)
+     Row 7: Start button
    ============================================ */
 
 :root {
@@ -17,52 +25,32 @@
   --glow-strong: 0 0 16px rgba(0, 229, 255, 0.6), 0 0 32px rgba(0, 229, 255, 0.2);
 }
 
-*, *::before, *::after {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 html, body {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  background: var(--black);
-  color: var(--text-primary);
+  width: 100%; height: 100%; overflow: hidden;
+  background: var(--black); color: var(--text-primary);
   font-family: var(--font-mono);
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
   touch-action: manipulation;
 }
 
-/* ---- CRT Overlay: Scanlines ---- */
+/* ---- CRT Overlays ---- */
 .crt-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9998;
-  pointer-events: none;
+  position: fixed; inset: 0; z-index: 9998; pointer-events: none;
   background: repeating-linear-gradient(
-    to bottom,
-    transparent 0px,
-    transparent 2px,
-    rgba(0, 0, 0, 0.12) 2px,
-    rgba(0, 0, 0, 0.12) 4px
+    to bottom, transparent 0px, transparent 2px,
+    rgba(0,0,0,0.12) 2px, rgba(0,0,0,0.12) 4px
   );
 }
-
-/* ---- CRT Overlay: Vignette ---- */
 .vignette {
-  position: fixed;
-  inset: 0;
-  z-index: 9997;
-  pointer-events: none;
-  box-shadow:
-    inset 0 0 80px rgba(0, 0, 0, 0.8),
-    inset 0 0 160px rgba(0, 0, 0, 0.5);
+  position: fixed; inset: 0; z-index: 9997; pointer-events: none;
+  box-shadow: inset 0 0 80px rgba(0,0,0,0.8), inset 0 0 160px rgba(0,0,0,0.5);
 }
 
 /* ============================================
-   App Grid Layout — Mobile portrait
+   Grid Layout
    ============================================ */
 .app-grid {
   display: grid;
@@ -70,323 +58,21 @@ html, body {
   height: 100dvh;
   padding: 4px;
   gap: 3px;
-  grid-template-columns: 1fr 48px;
-  grid-template-rows: 38fr 22fr auto 14fr auto auto;
+  /* THR slider is 48px on the left, gauge fills the rest */
+  grid-template-columns: 48px 1fr;
+  grid-template-rows: 35fr auto 25fr auto 15fr auto auto;
   grid-template-areas:
-    "gauge      threshold"
-    "spectro    threshold"
-    "bands      threshold"
-    "tap        threshold"
+    "threshold  gauge"
     "range      range"
+    "spectro    spectro"
+    "bands      bands"
+    "tap        tap"
+    "stats      stats"
     "controls   controls";
 }
 
 /* ============================================
-   Gauge Section (BPM arc + number)
-   ============================================ */
-.gauge-section {
-  grid-area: gauge;
-  position: relative;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.gauge-canvas {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-/* ============================================
-   Spectrogram Section
-   ============================================ */
-.spectrogram-section {
-  grid-area: spectro;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.spectrogram-canvas {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-/* ============================================
-   Band Toggle Buttons
-   ============================================ */
-.band-section {
-  grid-area: bands;
-  display: flex;
-  gap: 4px;
-  padding: 2px 0;
-}
-
-.band-btn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 32px;
-  min-height: 32px;
-  background: var(--surface);
-  border: 1px solid var(--text-dim);
-  border-radius: 2px;
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: clamp(0.65rem, 2.5vw, 0.85rem);
-  letter-spacing: 0.15em;
-  cursor: pointer;
-  transition: all 0.12s;
-  user-select: none;
-  -webkit-user-select: none;
-  padding: 0;
-}
-
-.band-btn .led {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--text-dim);
-  transition: all 0.12s;
-  flex-shrink: 0;
-}
-
-.band-btn.active {
-  border-color: var(--accent-dim);
-  color: var(--accent);
-  box-shadow: 0 0 6px rgba(0, 229, 255, 0.15);
-}
-
-.band-btn.active .led {
-  background: var(--accent);
-  box-shadow: 0 0 4px var(--accent), 0 0 10px rgba(0, 229, 255, 0.4);
-}
-
-.band-btn:active {
-  transform: scale(0.96);
-  background: var(--accent-subtle);
-}
-
-/* ============================================
-   Tap Area
-   ============================================ */
-.tap-section {
-  grid-area: tap;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface);
-  border: 1px solid var(--accent-subtle);
-  border-radius: 2px;
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-  min-height: 48px;
-  transition: background 0.06s, border-color 0.06s;
-}
-
-.tap-section:active,
-.tap-section.flash {
-  background: var(--accent-subtle);
-  border-color: var(--accent-dim);
-}
-
-@keyframes tap-flash {
-  0% { background: rgba(0, 229, 255, 0.12); }
-  100% { background: var(--surface); }
-}
-
-.tap-section.flash {
-  animation: tap-flash 0.2s ease-out;
-}
-
-.tap-inner {
-  text-align: center;
-  pointer-events: none;
-}
-
-.tap-label {
-  display: block;
-  font-size: 0.5rem;
-  color: var(--text-dim);
-  letter-spacing: 0.2em;
-  margin-bottom: 1px;
-}
-
-.tap-text {
-  display: block;
-  font-size: clamp(0.9rem, 4vw, 1.4rem);
-  color: var(--text-primary);
-  letter-spacing: 0.2em;
-}
-
-.tap-bpm {
-  display: block;
-  font-size: 0.7rem;
-  color: var(--accent-dim);
-  min-height: 1.1em;
-  opacity: 0.7;
-}
-
-/* ============================================
-   BPM Range Slider (dual-thumb)
-   ============================================ */
-.range-section {
-  grid-area: range;
-  padding: 2px 6px;
-}
-
-.range-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2px;
-}
-
-.range-title {
-  font-size: 0.6rem;
-  color: var(--text-dim);
-  letter-spacing: 0.15em;
-}
-
-.range-val {
-  font-size: 0.75rem;
-  color: var(--accent-dim);
-  opacity: 0.8;
-}
-
-.dual-range-container {
-  position: relative;
-  height: 32px;
-  display: flex;
-  align-items: center;
-}
-
-.range-track {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--text-dim);
-  border-radius: 2px;
-  pointer-events: none;
-}
-
-.range-input {
-  position: absolute;
-  width: 100%;
-  height: 32px;
-  -webkit-appearance: none;
-  appearance: none;
-  background: transparent;
-  pointer-events: none;
-  margin: 0;
-}
-
-.range-input::-webkit-slider-runnable-track {
-  height: 3px;
-  background: transparent;
-  border: none;
-}
-
-.range-input::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--surface);
-  border: 2px solid var(--accent-dim);
-  cursor: pointer;
-  pointer-events: auto;
-  margin-top: -9px;
-  box-shadow: 0 0 4px rgba(0, 229, 255, 0.25);
-  transition: border-color 0.12s, box-shadow 0.12s;
-}
-
-.range-input::-webkit-slider-thumb:active {
-  border-color: var(--accent);
-  box-shadow: var(--glow-strong);
-}
-
-.range-input::-moz-range-track {
-  height: 3px;
-  background: transparent;
-  border: none;
-}
-
-.range-input::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--surface);
-  border: 2px solid var(--accent-dim);
-  cursor: pointer;
-  pointer-events: auto;
-  box-shadow: 0 0 4px rgba(0, 229, 255, 0.25);
-}
-
-.range-input::-moz-range-thumb:active {
-  border-color: var(--accent);
-  box-shadow: var(--glow-strong);
-}
-
-.range-min { z-index: 1; }
-.range-max { z-index: 2; }
-
-/* ============================================
-   Start/Stop Button
-   ============================================ */
-.controls-section {
-  grid-area: controls;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 3px 0;
-}
-
-.start-btn {
-  width: 100%;
-  min-height: 44px;
-  background: var(--surface);
-  border: 2px solid var(--accent-dim);
-  border-radius: 3px;
-  color: var(--accent);
-  font-family: var(--font-mono);
-  font-size: clamp(0.85rem, 3vw, 1rem);
-  letter-spacing: 0.2em;
-  cursor: pointer;
-  transition: all 0.15s;
-  user-select: none;
-  -webkit-user-select: none;
-  box-shadow: 0 0 8px rgba(0, 229, 255, 0.12), inset 0 0 8px rgba(0, 229, 255, 0.04);
-}
-
-.start-btn:hover {
-  border-color: var(--accent);
-  box-shadow: var(--glow-strong);
-}
-
-.start-btn:active {
-  transform: scale(0.97);
-  background: var(--accent-subtle);
-}
-
-.start-btn.active {
-  border-color: #ff3b3b;
-  color: #ff3b3b;
-  box-shadow: 0 0 8px rgba(255, 59, 59, 0.25), inset 0 0 8px rgba(255, 59, 59, 0.04);
-}
-
-.start-btn.active:hover {
-  box-shadow: 0 0 16px rgba(255, 59, 59, 0.5), 0 0 32px rgba(255, 59, 59, 0.2);
-}
-
-/* ============================================
-   Amplitude Threshold Slider (vertical, right)
+   Threshold Slider (LEFT side, gauge height only)
    ============================================ */
 .threshold-section {
   grid-area: threshold;
@@ -398,11 +84,10 @@ html, body {
   background: var(--surface);
   border: 1px solid var(--accent-subtle);
   border-radius: 2px;
-  width: 48px;
 }
 
 .threshold-label {
-  font-size: 0.55rem;
+  font-size: 0.6rem;
   color: var(--text-secondary);
   letter-spacing: 0.15em;
 }
@@ -420,35 +105,21 @@ html, body {
 }
 
 .threshold-slider::-webkit-slider-runnable-track {
-  width: 4px;
-  background: var(--text-dim);
-  border-radius: 2px;
+  width: 4px; background: var(--text-dim); border-radius: 2px;
 }
-
 .threshold-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--surface);
-  border: 2px solid var(--accent-dim);
-  box-shadow: 0 0 4px rgba(0, 229, 255, 0.3);
+  -webkit-appearance: none; appearance: none;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--surface); border: 2px solid var(--accent-dim);
+  box-shadow: 0 0 4px rgba(0,229,255,0.3);
 }
-
 .threshold-slider::-moz-range-track {
-  width: 4px;
-  background: var(--text-dim);
-  border-radius: 2px;
+  width: 4px; background: var(--text-dim); border-radius: 2px;
 }
-
 .threshold-slider::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--surface);
-  border: 2px solid var(--accent-dim);
-  box-shadow: 0 0 4px rgba(0, 229, 255, 0.3);
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--surface); border: 2px solid var(--accent-dim);
+  box-shadow: 0 0 4px rgba(0,229,255,0.3);
 }
 
 .threshold-value {
@@ -457,24 +128,226 @@ html, body {
 }
 
 /* ============================================
-   Desktop: wider layout
+   BPM Gauge
+   ============================================ */
+.gauge-section {
+  grid-area: gauge;
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+}
+.gauge-canvas {
+  width: 100%; height: 100%; display: block;
+}
+
+/* ============================================
+   Range Slider
+   ============================================ */
+.range-section {
+  grid-area: range;
+  padding: 2px 20px;
+}
+.range-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0;
+}
+.range-title {
+  font-size: 0.6rem; color: var(--text-dim); letter-spacing: 0.15em;
+}
+.range-val {
+  font-size: 0.75rem; color: var(--accent-dim); opacity: 0.8;
+}
+.dual-range-container {
+  position: relative; height: 36px;
+  display: flex; align-items: center;
+}
+.range-track {
+  position: absolute; left: 0; right: 0; height: 3px;
+  background: var(--text-dim); border-radius: 2px; pointer-events: none;
+}
+.range-input {
+  position: absolute; width: 100%; height: 36px;
+  -webkit-appearance: none; appearance: none;
+  background: transparent; pointer-events: none; margin: 0;
+}
+.range-input::-webkit-slider-runnable-track {
+  height: 3px; background: transparent; border: none;
+}
+.range-input::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--surface); border: 2px solid var(--accent-dim);
+  cursor: pointer; pointer-events: auto; margin-top: -9px;
+  box-shadow: 0 0 4px rgba(0,229,255,0.25);
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.range-input::-webkit-slider-thumb:active {
+  border-color: var(--accent); box-shadow: var(--glow-strong);
+}
+.range-input::-moz-range-track {
+  height: 3px; background: transparent; border: none;
+}
+.range-input::-moz-range-thumb {
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--surface); border: 2px solid var(--accent-dim);
+  cursor: pointer; pointer-events: auto;
+  box-shadow: 0 0 4px rgba(0,229,255,0.25);
+}
+.range-input::-moz-range-thumb:active {
+  border-color: var(--accent); box-shadow: var(--glow-strong);
+}
+.range-min { z-index: 1; }
+.range-max { z-index: 2; }
+
+/* ============================================
+   Spectrogram
+   ============================================ */
+.spectrogram-section {
+  grid-area: spectro; min-height: 0; overflow: hidden;
+}
+.spectrogram-canvas {
+  width: 100%; height: 100%; display: block;
+}
+
+/* ============================================
+   Band Toggles
+   ============================================ */
+.band-section {
+  grid-area: bands;
+  display: flex; gap: 4px;
+  padding: 2px 20px;
+}
+.band-btn {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  height: 32px; min-height: 32px;
+  background: var(--surface); border: 1px solid var(--text-dim);
+  border-radius: 2px; color: var(--text-secondary);
+  font-family: var(--font-mono); font-size: clamp(0.65rem, 2.5vw, 0.85rem);
+  letter-spacing: 0.15em; cursor: pointer;
+  transition: all 0.12s; user-select: none; -webkit-user-select: none;
+}
+.band-btn .led {
+  display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--text-dim); transition: all 0.12s; flex-shrink: 0;
+}
+.band-btn.active {
+  border-color: var(--accent-dim); color: var(--accent);
+  box-shadow: 0 0 6px rgba(0,229,255,0.15);
+}
+.band-btn.active .led {
+  background: var(--accent);
+  box-shadow: 0 0 4px var(--accent), 0 0 10px rgba(0,229,255,0.4);
+}
+.band-btn:active {
+  transform: scale(0.96); background: var(--accent-subtle);
+}
+
+/* ============================================
+   Tap Area
+   ============================================ */
+.tap-section {
+  grid-area: tap;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface); border: 1px solid var(--accent-subtle);
+  border-radius: 2px; cursor: pointer; user-select: none;
+  -webkit-user-select: none; min-height: 48px;
+  margin: 0 20px;
+  transition: background 0.06s, border-color 0.06s;
+}
+.tap-section:active, .tap-section.flash {
+  background: var(--accent-subtle); border-color: var(--accent-dim);
+}
+@keyframes tap-flash {
+  0% { background: rgba(0,229,255,0.12); }
+  100% { background: var(--surface); }
+}
+.tap-section.flash { animation: tap-flash 0.2s ease-out; }
+.tap-inner { text-align: center; pointer-events: none; }
+.tap-label {
+  display: block; font-size: 0.5rem; color: var(--text-dim);
+  letter-spacing: 0.2em; margin-bottom: 1px;
+}
+.tap-text {
+  display: block; font-size: clamp(0.9rem, 4vw, 1.4rem);
+  color: var(--text-primary); letter-spacing: 0.2em;
+}
+.tap-bpm {
+  display: block; font-size: 0.7rem; color: var(--accent-dim);
+  min-height: 1.1em; opacity: 0.7;
+}
+
+/* ============================================
+   Stats Readout (FREQ / SIG / CONF)
+   ============================================ */
+.stats-section {
+  grid-area: stats;
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+  padding: 2px 20px;
+}
+.stat-item {
+  text-align: center;
+}
+.stat-label {
+  display: block; font-size: 0.5rem; color: var(--text-dim);
+  letter-spacing: 0.1em;
+}
+.stat-value {
+  display: block; font-size: 0.75rem; color: var(--text-secondary);
+}
+
+/* ============================================
+   Start/Stop Button
+   ============================================ */
+.controls-section {
+  grid-area: controls;
+  display: flex; align-items: center; justify-content: center;
+  padding: 3px 20px;
+}
+.start-btn {
+  width: 100%; min-height: 44px;
+  background: var(--surface); border: 2px solid var(--accent-dim);
+  border-radius: 3px; color: var(--accent);
+  font-family: var(--font-mono); font-size: clamp(0.85rem, 3vw, 1rem);
+  letter-spacing: 0.2em; cursor: pointer;
+  transition: all 0.15s; user-select: none; -webkit-user-select: none;
+  box-shadow: 0 0 8px rgba(0,229,255,0.12), inset 0 0 8px rgba(0,229,255,0.04);
+}
+.start-btn:hover {
+  border-color: var(--accent); box-shadow: var(--glow-strong);
+}
+.start-btn:active {
+  transform: scale(0.97); background: var(--accent-subtle);
+}
+.start-btn.active {
+  border-color: #ff3b3b; color: #ff3b3b;
+  box-shadow: 0 0 8px rgba(255,59,59,0.25), inset 0 0 8px rgba(255,59,59,0.04);
+}
+.start-btn.active:hover {
+  box-shadow: 0 0 16px rgba(255,59,59,0.5), 0 0 32px rgba(255,59,59,0.2);
+}
+
+/* ============================================
+   Desktop: cap width
    ============================================ */
 @media (min-width: 768px) {
-  .app-grid {
-    max-width: 600px;
-    margin: 0 auto;
-  }
+  .app-grid { max-width: 480px; margin: 0 auto; }
 }
 
 /* Landscape phone */
 @media (max-height: 500px) and (orientation: landscape) {
   .app-grid {
-    grid-template-columns: 1fr 1fr 48px;
-    grid-template-rows: 1fr auto auto auto;
+    grid-template-columns: 48px 1fr 1fr;
+    grid-template-rows: 1fr auto auto auto auto;
     grid-template-areas:
-      "gauge     spectro   threshold"
-      "bands     tap       threshold"
-      "range     range     range"
-      "controls  controls  controls";
+      "threshold gauge    spectro"
+      "range     range    range"
+      "bands     bands    tap"
+      "stats     stats    stats"
+      "controls  controls controls";
   }
 }

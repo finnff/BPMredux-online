@@ -32,6 +32,9 @@ const dom = {
   threshold:      $('threshold-slider'),
   thresholdValue: $('threshold-value'),
   btnStart:       $('btn-start'),
+  statFreq:       $('stat-freq'),
+  statSig:        $('stat-sig'),
+  statConf:       $('stat-conf'),
 };
 
 // ===== DSP Pipeline =====
@@ -139,7 +142,15 @@ function processFrame(samples) {
 // ===== Render Loop (60fps) =====
 let rafId = null;
 function renderLoop() {
-  // Render gauge (BPM number is drawn on canvas now)
+  // Update stats readout
+  if (state.running && state.peakFreq > 0) {
+    dom.statFreq.textContent = Math.round(state.peakFreq) + 'HZ';
+    const sig = Math.min(1, state.rmsAmplitude * 4) * 100;
+    dom.statSig.textContent = Math.round(sig) + '%';
+    dom.statConf.textContent = Math.round(state.confidence * 100) + '%';
+  }
+
+  // Render gauge
   bpmGauge.render({
     bpm: state.bpm,
     confidence: state.confidence,
