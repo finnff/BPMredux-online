@@ -4,16 +4,22 @@
  */
 
 const ODF_SAMPLE_RATE = 100;      // Hz — onset detection function sample rate
-const ODF_BUFFER_SIZE = 400;      // 4 seconds at 100 Hz
-const UPDATE_INTERVAL_SAMPLES = 20; // ~0.2s between updates
-const EMA_ALPHA = 0.3;
+const ODF_BUFFER_SIZE_DEFAULT = 400;      // 4 seconds at 100 Hz
+const UPDATE_INTERVAL_SAMPLES_DEFAULT = 20; // ~0.2s between updates
+const EMA_ALPHA_DEFAULT = 0.3;
 const EXTENDED_BPM_MIN = 40;
 const EXTENDED_BPM_MAX = 250;
 const PEGGING_THRESHOLD = 0.3;    // out-of-range peak must be >30% stronger
 
 export class TempoEstimator {
   constructor() {
-    this.odfBuffer = new Float32Array(ODF_BUFFER_SIZE);
+    // Stability-adjustable parameters (default = middle/stable)
+    this.emaAlpha = EMA_ALPHA_DEFAULT;
+    this.odfBufferSize = ODF_BUFFER_SIZE_DEFAULT;
+    this.updateIntervalSamples = UPDATE_INTERVAL_SAMPLES_DEFAULT;
+
+    // ODF buffer initialized to default size
+    this.odfBuffer = new Float32Array(this.odfBufferSize);
     this.odfWritePos = 0;
     this.odfCount = 0;
     this.samplesSinceUpdate = 0;
@@ -28,16 +34,49 @@ export class TempoEstimator {
   }
 
   /**
+   * Set stability level (0-1).
+   * 0 = most responsive (less smoothing, smaller buffer, more frequent updates)
+   * 1 = most stable (more smoothing, larger buffer, less frequent updates)
+   * @param {number} level - 0.0 to 1.0
+   */
+  setStability(level) {
+    // EMA_ALPHA: 0.05 (stable) to 0.6 (responsive), default 0.3 at level 0.5
+    // Lower alpha = more smoothing = more stable
+    this.emaAlpha = 0.6 - level * 0.55; // 0.6 at 0, 0.05 at 1
+
+    // ODF_BUFFER_SIZE: 200 (responsive) to 600 (stable), default 400 at level 0.5
+    this.odfBufferSize = Math.round(200 + level * 400);
+
+    // UPDATE_INTERVAL_SAMPLES: 10 (responsive) to 40 (stable), default 20 at level 0.5
+    this.updateIntervalSamples = Math.round(10 + level * 30);
+
+    // Reallocate buffer if size changed (preserve existing data if possible)
+    if (this.odfBuffer.length !== this.odfBufferSize) {
+      const newBuffer = new Float32Array(this.odfBufferSize);
+      // Copy as much existing data as will fit
+      const copyCount = Math.min(this.odfCount, this.odfBufferSize);
+      for (let i = 0; i < copyCount; i++) {
+        const srcIdx = (this.odfWritePos - this.odfCount + i) % this.odfBuffer.length;
+        const dstIdx = i;
+        newBuffer[dstIdx] = this.odfBuffer[srcIdx];
+      }
+      this.odfBuffer = newBuffer;
+      this.odfWritePos = copyCount;
+      this.odfCount = copyCount;
+    }
+  }
+
+  /**
    * @param {boolean} isOnset
    * @returns {null|{bpm: number, confidence: number, isAtRangeLimit: boolean, limitSide: string|null}}
    */
   addOnsetSample(isOnset) {
-    this.odfBuffer[this.odfWritePos % ODF_BUFFER_SIZE] = isOnset ? 1.0 : 0.0;
+    this.odfBuffer[this.odfWritePos % this.odfBufferSize] = isOnset ? 1.0 : 0.0;
     this.odfWritePos++;
-    this.odfCount = Math.min(this.odfCount + 1, ODF_BUFFER_SIZE);
+    this.odfCount = Math.min(this.odfCount + 1, this.odfBufferSize);
     this.samplesSinceUpdate++;
 
-    if (this.samplesSinceUpdate < UPDATE_INTERVAL_SAMPLES || this.odfCount < ODF_SAMPLE_RATE * 2) {
+    if (this.samplesSinceUpdate < this.updateIntervalSamples || this.odfCount < ODF_SAMPLE_RATE * 2) {
       return null;
     }
     this.samplesSinceUpdate = 0;
@@ -62,8 +101,8 @@ export class TempoEstimator {
       let sum = 0;
       const n = bufLen - lag;
       for (let i = 0; i < n; i++) {
-        const idx1 = (start + i) % ODF_BUFFER_SIZE;
-        const idx2 = (start + i + lag) % ODF_BUFFER_SIZE;
+        const idx1 = (start + i) % this.odfBufferSize;
+        const idx2 = (start + i + lag) % this.odfBufferSize;
         sum += this.odfBuffer[idx1] * this.odfBuffer[idx2];
       }
       acf[lag] = sum;
@@ -143,7 +182,7 @@ export class TempoEstimator {
     if (this.lastSmoothedBpm === 0) {
       smoothedBpm = rawBpm;
     } else {
-      smoothedBpm = EMA_ALPHA * rawBpm + (1 - EMA_ALPHA) * this.lastSmoothedBpm;
+      smoothedBpm = this.emaAlpha * rawBpm + (1 - this.emaAlpha) * this.lastSmoothedBpm;
     }
     this.lastSmoothedBpm = smoothedBpm;
 

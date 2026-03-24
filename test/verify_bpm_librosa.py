@@ -8,21 +8,32 @@ import numpy as np
 import sys
 import os
 
-WAV_PATH = os.path.join(os.path.dirname(__file__), "fixtures", "sandstorm_30s_44100.wav")
-FULL_WAV = os.path.join(os.path.dirname(__file__), "fixtures", "test_track.wav")
+# Test tracks with their expected BPM ranges
+TRACKS = {
+    "techno_original": ("e2e/fixtures/techno_original.wav", 135, "Techno"),
+    "techno_variant": ("e2e/fixtures/techno_variant.wav", None, "Techno (variable tempo)"),
+    "trance_original": ("e2e/fixtures/trance_original.wav", 140, "Trance"),
+    "trance_variant": ("e2e/fixtures/trance_variant.wav", None, "Trance (variable tempo)"),
+    "dnb_original": ("e2e/fixtures/dnb_original.wav", 175, "Drum & Bass"),
+    "dnb_variant": ("e2e/fixtures/dnb_variant.wav", None, "Drum & Bass (variable tempo)"),
+}
 
-# Our E2E pipeline result
-OUR_BPM = 136.4
+def get_path(rel_path):
+    """Get absolute path from relative path."""
+    return os.path.join(os.path.dirname(__file__), rel_path)
 
-def analyze(path, label):
+def analyze(path, label, expected_bpm=None):
     print(f"\n{'='*60}")
     print(f"  {label}")
-    print(f"  {path}")
+    print(f"  {os.path.basename(path)}")
     print(f"{'='*60}")
 
     y, sr = librosa.load(path, sr=44100, mono=True)
     duration = len(y) / sr
     print(f"  Duration: {duration:.1f}s  SR: {sr}Hz  Samples: {len(y)}")
+
+    if expected_bpm:
+        print(f"  Expected BPM: ~{expected_bpm}")
 
     # Method 1: librosa.beat.beat_track (default)
     tempo_default, beats = librosa.beat.beat_track(y=y, sr=sr)
@@ -47,6 +58,18 @@ def analyze(path, label):
     tempo_plp = float(np.atleast_1d(tempo_plp)[0])
     print(f"  [4] librosa.feature.tempo (no prior):   {tempo_plp:.1f} BPM")
 
+    # For variable tempo tracks, do segment analysis
+    if "variant" in label:
+        print(f"\n  --- Variable BPM Analysis (5s segments) ---")
+        segment_len = 5 * sr  # 5 seconds
+        for i in range(0, min(len(y), 30 * sr), segment_len):  # First 30s only
+            segment = y[i:i+segment_len]
+            if len(segment) < segment_len:
+                continue
+            seg_tempo, _ = librosa.beat.beat_track(y=segment, sr=sr)
+            seg_tempo = float(np.atleast_1d(seg_tempo)[0])
+            print(f"  {i//sr:2d}-{(i+segment_len)//sr:2d}s: {seg_tempo:.1f} BPM")
+
     return tempo_default, tempo_onset
 
 print("╔══════════════════════════════════════════════════════════╗")
@@ -55,42 +78,35 @@ print("╚═══════════════════════�
 
 results = {}
 
-# Analyze the 30s clip (same as our E2E test)
-if os.path.exists(WAV_PATH):
-    t1, t2 = analyze(WAV_PATH, "30s clip (same as E2E test)")
-    results["30s_clip"] = (t1, t2)
+# Analyze all test tracks
+for name, (rel_path, expected_bpm, label) in TRACKS.items():
+    path = get_path(rel_path)
+    if os.path.exists(path):
+        t1, t2 = analyze(path, label, expected_bpm)
+        results[name] = (t1, t2, expected_bpm, label)
 
-# Analyze full track
-if os.path.exists(FULL_WAV):
-    t1, t2 = analyze(FULL_WAV, "Full track")
-    results["full"] = (t1, t2)
-
-# Comparison
+# Summary table
 print(f"\n{'='*60}")
-print(f"  COMPARISON")
+print(f"  SUMMARY")
 print(f"{'='*60}")
-print(f"  Known BPM (Darude - Sandstorm):    136 BPM")
-print(f"  Our pipeline (E2E test result):     {OUR_BPM:.1f} BPM")
+print(f"{'Track':<20} {'Expected':>10} {'librosa':>10} {'Onset':>10}")
+print(f"{'-'*60}")
 
-if "30s_clip" in results:
-    t1, t2 = results["30s_clip"]
-    print(f"  librosa beat_track (30s clip):      {t1:.1f} BPM")
-    print(f"  librosa onset tempo (30s clip):     {t2:.1f} BPM")
-    diff = abs(OUR_BPM - t1)
-    print(f"\n  Δ (ours vs librosa beat_track):     {diff:.1f} BPM")
-    if diff < 5:
-        print(f"  ✅ EXCELLENT — within 5 BPM of librosa")
-    elif diff < 10:
-        print(f"  ✓ GOOD — within 10 BPM of librosa")
-    else:
-        # Check for half/double tempo relationship
-        if abs(OUR_BPM - t1 * 2) < 5 or abs(OUR_BPM - t1 / 2) < 5:
-            print(f"  ⚠ HARMONIC — half/double tempo relationship detected")
-        else:
-            print(f"  ✗ MISMATCH — >10 BPM difference")
+for name, (t1, t2, expected_bpm, label) in results.items():
+    expected_str = f"~{expected_bpm}" if expected_bpm else "variable"
+    print(f"{label:<20} {expected_str:>10} {t1:>10.1f} {t2:>10.1f}")
 
-if "full" in results:
-    t1, _ = results["full"]
-    print(f"\n  librosa beat_track (full track):    {t1:.1f} BPM")
-
+# Expected tempo ranges for variant files
+print(f"\n{'='*60}")
+print(f"  VARIABLE TEMPO EXPECTED RANGES")
+print(f"{'='*60}")
+print("Variant files should show these BPM patterns:")
+print("  0-5s:   ~original BPM (1.0x speed)")
+print("  5-25s:  ramps from ~+20% to ~-40% of original")
+print("  25s+:   ~72% of original BPM (0.72x speed)")
+print()
+print("Expected ranges by genre:")
+print(f"  Techno:   135 base → 162 (fast) → 97 (slow) BPM")
+print(f"  Trance:   140 base → 168 (fast) → 101 (slow) BPM")
+print(f"  DnB:      175 base → 210 (fast) → 122 (slow) BPM")
 print()

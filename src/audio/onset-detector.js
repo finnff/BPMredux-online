@@ -5,7 +5,7 @@
 
 import { BANDS } from './band-filter.js';
 
-const HISTORY_SIZE = 22;
+const HISTORY_SIZE_DEFAULT = 22;
 const MIN_ONSET_INTERVAL_MS = 100;
 
 // Hardcoded bin ranges matching Kotlin version
@@ -24,11 +24,14 @@ export class OnsetDetector {
     /** @type {Set<string>} Active bands for onset detection */
     this.activeBands = new Set([BANDS.SUB, BANDS.MID, BANDS.HI]);
 
+    // Stability-adjustable history size (default = 22)
+    this.historySize = HISTORY_SIZE_DEFAULT;
+
     // Previous magnitude spectrum for spectral flux
     this.prevMagnitudes = null;
 
     // Flux history for adaptive thresholding (circular buffer)
-    this.fluxHistory = new Float32Array(HISTORY_SIZE);
+    this.fluxHistory = new Float32Array(this.historySize);
     this.fluxHistoryIdx = 0;
     this.fluxHistoryCount = 0;
 
@@ -38,6 +41,31 @@ export class OnsetDetector {
     // Adaptive sensitivity
     this.sensitivity = 1.5;
     this.onsetTimestamps = [];  // recent onset times for rate estimation
+  }
+
+  /**
+   * Set stability level (0-1).
+   * 0 = most responsive (smaller history, faster adaptation)
+   * 1 = most stable (larger history, slower adaptation)
+   * @param {number} level - 0.0 to 1.0
+   */
+  setStability(level) {
+    // HISTORY_SIZE: 10 (responsive) to 40 (stable), default 22 at level 0.5
+    const newSize = Math.round(10 + level * 30);
+
+    if (newSize !== this.historySize) {
+      // Reallocate buffer if size changed (preserve existing data if possible)
+      const newBuffer = new Float32Array(newSize);
+      const copyCount = Math.min(this.fluxHistoryCount, newSize);
+      for (let i = 0; i < copyCount; i++) {
+        const srcIdx = (this.fluxHistoryIdx - this.fluxHistoryCount + i + this.historySize) % this.historySize;
+        newBuffer[i] = this.fluxHistory[srcIdx];
+      }
+      this.fluxHistory = newBuffer;
+      this.historySize = newSize;
+      this.fluxHistoryIdx = copyCount % newSize;
+      this.fluxHistoryCount = Math.min(this.fluxHistoryCount, newSize);
+    }
   }
 
   /**
@@ -121,8 +149,8 @@ export class OnsetDetector {
 
     // Add to history
     this.fluxHistory[this.fluxHistoryIdx] = flux;
-    this.fluxHistoryIdx = (this.fluxHistoryIdx + 1) % HISTORY_SIZE;
-    if (this.fluxHistoryCount < HISTORY_SIZE) {
+    this.fluxHistoryIdx = (this.fluxHistoryIdx + 1) % this.historySize;
+    if (this.fluxHistoryCount < this.historySize) {
       this.fluxHistoryCount++;
     }
 

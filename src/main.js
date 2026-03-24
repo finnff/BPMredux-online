@@ -31,6 +31,8 @@ const dom = {
   rangeTrack:     $('range-track'),
   threshold:      $('threshold-slider'),
   thresholdValue: $('threshold-value'),
+  stability:      $('stability-slider'),
+  stabilityValue: $('stability-value'),
   btnStart:       $('btn-start'),
   statFreq:       $('stat-freq'),
   statSig:        $('stat-sig'),
@@ -65,6 +67,7 @@ const state = {
   rangeMin: 120,
   rangeMax: 180,
   amplitudeThreshold: 0.15,  // 0..0.5 range, 30/200 = 0.15 default
+  stabilityLevel: 0.5,       // 0..1 range, 50/100 = 0.5 default (balanced)
   rmsAmplitude: 0,
   magnitudes: null,
   // ODF timing: we sample the onset detection function at 100 Hz
@@ -234,6 +237,22 @@ function initThreshold() {
   });
 }
 
+// ===== Stability Slider =====
+function initStability() {
+  dom.stability.addEventListener('input', () => {
+    const val = parseInt(dom.stability.value);
+    dom.stabilityValue.textContent = val;
+    // Map 0-100 slider to 0-1 stability level
+    state.stabilityLevel = val / 100;
+    // Update both DSP components with new stability setting
+    tempoEstimator.setStability(state.stabilityLevel);
+    onsetDetector.setStability(state.stabilityLevel);
+  });
+  // Initialize with default value
+  tempoEstimator.setStability(state.stabilityLevel);
+  onsetDetector.setStability(state.stabilityLevel);
+}
+
 // ===== Tap Tempo =====
 function initTap() {
   const handleTap = () => {
@@ -325,6 +344,7 @@ function init() {
   initBands();
   initRange();
   initThreshold();
+  initStability();
   initTap();
   initStart();
 

@@ -22,7 +22,7 @@
 
   <div id="app" class="app-grid">
 
-    <!-- Row 1: THR slider (left) + BPM Gauge (right) — matches Android layout -->
+    <!-- Row 1: THR slider (left) + BPM Gauge (center) + STAB slider (right) — matches Android layout -->
     <aside class="threshold-section">
       <label class="threshold-label">THR</label>
       <input type="range" id="threshold-slider" class="threshold-slider" min="0" max="100" value="30" step="1" orient="vertical" aria-label="Amplitude threshold">
@@ -32,6 +32,12 @@
     <section class="gauge-section">
       <canvas id="bpm-gauge" class="gauge-canvas"></canvas>
     </section>
+
+    <aside class="stability-section">
+      <label class="stability-label">STAB</label>
+      <input type="range" id="stability-slider" class="stability-slider" min="0" max="100" value="50" step="1" orient="vertical" aria-label="Stability">
+      <span id="stability-value" class="stability-value">50</span>
+    </aside>
 
     <!-- Row 2: BPM Range Slider -->
     <section class="range-section">

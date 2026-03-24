@@ -2,7 +2,7 @@
    BPMredux-online — CRT Terminal Aesthetic
    Mobile-first, full viewport, no scroll
    Matches Android Kotlin layout exactly:
-     Row 1: [THR slider (left, narrow)] [BPM gauge (fills rest)]
+     Row 1: [THR slider (left, narrow)] [BPM gauge (center)] [STAB slider (right, narrow)]
      Row 2: Range slider (full width)
      Row 3: Spectrogram (full width)
      Row 4: Band toggles (SUB/MID/HI)
@@ -58,17 +58,17 @@ html, body {
   height: 100dvh;
   padding: 4px;
   gap: 3px;
-  /* THR slider is 48px on the left, gauge fills the rest */
-  grid-template-columns: 48px 1fr;
+  /* THR slider: 48px left, gauge center, STABILITY: 48px right */
+  grid-template-columns: 48px 1fr 48px;
   grid-template-rows: 35fr auto 25fr auto 15fr auto auto;
   grid-template-areas:
-    "threshold  gauge"
-    "range      range"
-    "spectro    spectro"
-    "bands      bands"
-    "tap        tap"
-    "stats      stats"
-    "controls   controls";
+    "threshold  gauge stability"
+    "range      range  range"
+    "spectro    spectro spectro"
+    "bands      bands  bands"
+    "tap        tap    tap"
+    "stats      stats  stats"
+    "controls   controls controls";
 }
 
 /* ============================================
@@ -123,6 +123,62 @@ html, body {
 }
 
 .threshold-value {
+  font-size: 0.55rem;
+  color: var(--text-dim);
+}
+
+/* ============================================
+   Stability Slider (RIGHT side, gauge height only)
+   ============================================ */
+.stability-section {
+  grid-area: stability;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 2px;
+  background: var(--surface);
+  border: 1px solid var(--accent-subtle);
+  border-radius: 2px;
+}
+
+.stability-label {
+  font-size: 0.6rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.15em;
+}
+
+.stability-slider {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 36px;
+  flex: 1;
+  margin: 6px 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.stability-slider::-webkit-slider-runnable-track {
+  width: 4px; background: var(--text-dim); border-radius: 2px;
+}
+.stability-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--surface); border: 2px solid var(--accent-dim);
+  box-shadow: 0 0 4px rgba(0,229,255,0.3);
+}
+.stability-slider::-moz-range-track {
+  width: 4px; background: var(--text-dim); border-radius: 2px;
+}
+.stability-slider::-moz-range-thumb {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--surface); border: 2px solid var(--accent-dim);
+  box-shadow: 0 0 4px rgba(0,229,255,0.3);
+}
+
+.stability-value {
   font-size: 0.55rem;
   color: var(--text-dim);
 }
@@ -341,13 +397,13 @@ html, body {
 /* Landscape phone */
 @media (max-height: 500px) and (orientation: landscape) {
   .app-grid {
-    grid-template-columns: 48px 1fr 1fr;
+    grid-template-columns: 48px 1fr 1fr 48px;
     grid-template-rows: 1fr auto auto auto auto;
     grid-template-areas:
-      "threshold gauge    spectro"
-      "range     range    range"
-      "bands     bands    tap"
-      "stats     stats    stats"
-      "controls  controls controls";
+      "threshold gauge    spectro stability"
+      "range     range    range   range"
+      "bands     bands    tap     bands"
+      "stats     stats    stats   stats"
+      "controls  controls controls controls";
   }
 }
