@@ -129,18 +129,18 @@ export class OnsetDetector {
    * @param {Float32Array} magnitudes - current magnitude spectrum
    * @param {{sub: number, mid: number, hi: number}} bandEnergy - band energies (unused for flux but available)
    * @param {number} timeMs - current time in milliseconds
-   * @returns {boolean} true if onset detected
+   * @returns {number} flux value (positive number) if onset, 0 otherwise
    */
   process(magnitudes, bandEnergy, timeMs) {
     if (this.prevMagnitudes === null) {
       this.prevMagnitudes = new Float32Array(magnitudes);
-      return false;
+      return 0;
     }
 
     // Enforce minimum onset interval
     if (timeMs - this.lastOnsetTimeMs < MIN_ONSET_INTERVAL_MS) {
       this.prevMagnitudes = new Float32Array(magnitudes);
-      return false;
+      return 0;
     }
 
     // Compute spectral flux
@@ -156,7 +156,7 @@ export class OnsetDetector {
 
     // Need enough history for threshold
     if (this.fluxHistoryCount < 3) {
-      return false;
+      return 0;
     }
 
     // Compute adaptive threshold: mean + sensitivity * stddev
@@ -186,7 +186,7 @@ export class OnsetDetector {
     // Adapt sensitivity
     this.adaptSensitivity(timeMs);
 
-    return isOnset;
+    return isOnset ? flux : 0;
   }
 
   /**

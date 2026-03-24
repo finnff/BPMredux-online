@@ -74,7 +74,7 @@ const state = {
   odfAccumulator: 0,
   odfInterval: SAMPLE_RATE / 100, // samples between ODF ticks (441)
   odfSamplesProcessed: 0,
-  lastOnset: false,
+  lastOnset: 0,  // continuous-valued ODF: flux value (0 or positive number)
 };
 
 // ===== Audio Frame Processing (called ~43x/sec with 4096 samples, hop 1024) =====
@@ -95,14 +95,9 @@ function processFrame(samples) {
   }
   state.rmsAmplitude = Math.sqrt(sumSq / samples.length);
 
-  // Amplitude gate
-  if (state.rmsAmplitude < state.amplitudeThreshold) {
-    // Below threshold - feed silence to onset detector
-    state.lastOnset = false;
-  } else {
-    // Onset detection
-    state.lastOnset = onsetDetector.process(magnitudes, bandEnergy, now);
-  }
+  // Amplitude gate - always call process(), gate the result (continuous-valued)
+  const rawOnset = onsetDetector.process(magnitudes, bandEnergy, now);
+  state.lastOnset = (state.rmsAmplitude >= state.amplitudeThreshold) ? rawOnset : 0;
 
   // Peak frequency (for display)
   let maxMag = 0, maxBin = 0;
@@ -317,8 +312,7 @@ function stopAudio() {
   state.confidence = 0;
   state.odfSamplesProcessed = 0;
   state.odfAccumulator = 0;
-  state.lastOnset = false;
-
+  state.lastOnset = 0;  // continuous-valued ODF
   // Reset DSP
   onsetDetector.reset();
   tempoEstimator.reset();

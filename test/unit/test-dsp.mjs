@@ -222,8 +222,8 @@ describe('OnsetDetector', () => {
     // Actually feed silence then spike at t < 100ms from first onset
     if (first) {
       const tooSoon = detector.process(loud, { sub: 0, mid: 1, hi: 0 }, t - 30);
-      assert.strictEqual(tooSoon, false,
-        'Should not detect onset within 100ms of last onset');
+      assert.strictEqual(tooSoon, 0,
+        'Should not detect onset within 100ms of last onset (returns 0)');
     }
   });
 
@@ -234,7 +234,8 @@ describe('OnsetDetector', () => {
 
     let onsetCount = 0;
     for (let t = 0; t < 5000; t += 50) {
-      if (detector.process(constantTone, { sub: 0, mid: 1, hi: 0 }, t)) {
+      const flux = detector.process(constantTone, { sub: 0, mid: 1, hi: 0 }, t);
+      if (flux > 0) {
         onsetCount++;
       }
     }
@@ -303,8 +304,9 @@ describe('TempoEstimator', () => {
     let lastResult = null;
 
     for (let i = 0; i < totalSamples; i++) {
-      const isOnset = (i % intervalSamples) === 0;
-      const result = estimator.addOnsetSample(isOnset);
+      // Pass flux value (1.0) on onset, 0 otherwise
+      const onsetValue = (i % intervalSamples) === 0 ? 1.0 : 0;
+      const result = estimator.addOnsetSample(onsetValue);
       if (result !== null) {
         lastResult = result;
       }
@@ -315,7 +317,9 @@ describe('TempoEstimator', () => {
   it('returns null until enough data (200+ samples)', () => {
     const estimator = new TempoEstimator();
     for (let i = 0; i < 199; i++) {
-      const result = estimator.addOnsetSample(i % 50 === 0);
+      // Pass flux value (1.0) on onset, 0 otherwise
+      const onsetValue = (i % 50 === 0) ? 1.0 : 0;
+      const result = estimator.addOnsetSample(onsetValue);
       assert.strictEqual(result, null,
         `Should return null at sample ${i}`);
     }

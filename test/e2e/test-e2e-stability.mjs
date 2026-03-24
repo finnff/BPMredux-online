@@ -102,7 +102,7 @@ function processTrackWithStability(samples, stabilityLevel) {
   let samplesUntilEmit = FFT_SIZE;
   let odfSamplesProcessed = 0;
   let odfAccumulator = 0;
-  let lastOnset = false;
+  let lastOnset = 0;  // continuous-valued ODF: flux value (0 or positive number)
 
   const bpmReadings = [];
   let finalBpm = 0;
@@ -130,11 +130,9 @@ function processTrackWithStability(samples, stabilityLevel) {
 
       const timeMs = (i / SAMPLE_RATE) * 1000;
 
-      if (rmsAmplitude < AMPLITUDE_THRESHOLD) {
-        lastOnset = false;
-      } else {
-        lastOnset = onsetDetector.process(magnitudes, bandEnergy, timeMs);
-      }
+      // Amplitude gate - always call process(), gate the result (continuous-valued)
+      const rawOnset = onsetDetector.process(magnitudes, bandEnergy, timeMs);
+      lastOnset = (rmsAmplitude >= AMPLITUDE_THRESHOLD) ? rawOnset : 0;
 
       if (lastOnset) onsetCount++;
 

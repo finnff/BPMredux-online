@@ -67,11 +67,11 @@ export class TempoEstimator {
   }
 
   /**
-   * @param {boolean} isOnset
+   * @param {number} onsetValue - flux value (positive number) if onset, 0 otherwise
    * @returns {null|{bpm: number, confidence: number, isAtRangeLimit: boolean, limitSide: string|null}}
    */
-  addOnsetSample(isOnset) {
-    this.odfBuffer[this.odfWritePos % this.odfBufferSize] = isOnset ? 1.0 : 0.0;
+  addOnsetSample(onsetValue) {
+    this.odfBuffer[this.odfWritePos % this.odfBufferSize] = onsetValue;
     this.odfWritePos++;
     this.odfCount = Math.min(this.odfCount + 1, this.odfBufferSize);
     this.samplesSinceUpdate++;
@@ -108,18 +108,28 @@ export class TempoEstimator {
       acf[lag] = sum;
     }
 
-    // Find best in-range peak
-    let bestLag = lagMin;
-    let bestVal = acf[lagMin];
-    let secondBest = 0;
-    for (let lag = lagMin + 1; lag <= lagMax; lag++) {
-      if (acf[lag] > bestVal) {
-        secondBest = bestVal;
-        bestVal = acf[lag];
-        bestLag = lag;
-      } else if (acf[lag] > secondBest) {
-        secondBest = acf[lag];
+    // Find best in-range peak using local maxima detection
+    const peaks = [];
+    for (let lag = lagMin + 1; lag < lagMax; lag++) {
+      if (acf[lag] > acf[lag - 1] && acf[lag] >= acf[lag + 1]) {
+        peaks.push({ lag, val: acf[lag] });
       }
+    }
+    // Boundary checks
+    if (acf[lagMin] >= acf[lagMin + 1]) peaks.push({ lag: lagMin, val: acf[lagMin] });
+    if (acf[lagMax] >= acf[lagMax - 1]) peaks.push({ lag: lagMax, val: acf[lagMax] });
+
+    peaks.sort((a, b) => b.val - a.val);
+
+    let bestLag, bestVal, secondBestPeakVal;
+    if (peaks.length >= 1) {
+      bestLag = peaks[0].lag;
+      bestVal = peaks[0].val;
+      secondBestPeakVal = peaks.length >= 2 ? peaks[1].val : 0;
+    } else {
+      bestLag = acf[lagMin] >= acf[lagMax] ? lagMin : lagMax;
+      bestVal = acf[bestLag];
+      secondBestPeakVal = 0;
     }
 
     if (bestVal <= 0) return null;
@@ -131,6 +141,8 @@ export class TempoEstimator {
       if (doubleVal > bestVal * 0.8) {
         bestLag = doubleLag;
         bestVal = doubleVal;
+        // Find second best peak again (excluding the new best)
+        secondBestPeakVal = peaks.length >= 2 ? peaks[1].val : 0;
       }
     }
 
@@ -141,12 +153,25 @@ export class TempoEstimator {
       if (halfVal > bestVal * 0.9) {
         bestLag = halfLag;
         bestVal = halfVal;
+        // Find second best peak again (excluding the new best)
+        secondBestPeakVal = peaks.length >= 2 ? peaks[1].val : 0;
       }
     }
 
-    const rawBpm = 60.0 * ODF_SAMPLE_RATE / bestLag;
-    const confidence = secondBest > 0
-      ? Math.min(1, (bestVal / secondBest - 1) * 2)
+    // Parabolic interpolation for sub-sample precision
+    let refinedLag = bestLag;
+    if (bestLag > extLagMin && bestLag < effectiveLagMax) {
+      const y0 = acf[bestLag - 1];
+      const y1 = acf[bestLag];
+      const y2 = acf[bestLag + 1];
+      const denom = 2 * (2 * y1 - y0 - y2);
+      if (denom > 0) {
+        refinedLag = bestLag + (y0 - y2) / denom;
+      }
+    }
+    const rawBpm = 60.0 * ODF_SAMPLE_RATE / refinedLag;
+    const confidence = secondBestPeakVal > 0
+      ? Math.min(1, (bestVal / secondBestPeakVal - 1) * 2)
       : 1;
 
     // Range-limit pegging detection
