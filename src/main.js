@@ -66,8 +66,8 @@ const state = {
   activeBands: new Set([BANDS.SUB, BANDS.MID, BANDS.HI]),
   rangeMin: 120,
   rangeMax: 180,
-  amplitudeThreshold: 0.15,  // 0..0.5 range, 30/200 = 0.15 default
-  stabilityLevel: 0.5,       // 0..1 range, 50/100 = 0.5 default (balanced)
+  amplitudeThreshold: 0.025, // 0..0.5 range, 5/200 = 0.025 default
+  stabilityLevel: 0.9,       // 0..1 range, 90/100 = 0.9 default
   rmsAmplitude: 0,
   magnitudes: null,
   // ODF timing: we sample the onset detection function at 100 Hz

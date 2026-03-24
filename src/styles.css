@@ -58,8 +58,8 @@ html, body {
   height: 100dvh;
   padding: 4px;
   gap: 3px;
-  /* THR slider: 48px left, gauge center, STABILITY: 48px right */
-  grid-template-columns: 48px 1fr 48px;
+  /* THR slider: left, gauge center, STABILITY: right */
+  grid-template-columns: 64px 1fr 64px;
   grid-template-rows: 35fr auto 25fr auto 15fr auto auto;
   grid-template-areas:
     "threshold  gauge stability"
@@ -77,19 +77,35 @@ html, body {
 .threshold-section {
   grid-area: threshold;
   display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  padding: 0;
+  gap: 0;
+}
+
+.threshold-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-style: italic;
+  color: var(--text-secondary);
+  letter-spacing: 0.2em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0;
+  word-break: break-all;
+  line-height: 1.4;
+  text-align: center;
+  width: 1.2em;
+}
+
+.threshold-section .slider-track-wrap {
+  flex: 1;
+  display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
   padding: 8px 2px;
-  background: var(--surface);
-  border: 1px solid var(--accent-subtle);
-  border-radius: 2px;
-}
-
-.threshold-label {
-  font-size: 0.6rem;
-  color: var(--text-secondary);
-  letter-spacing: 0.15em;
 }
 
 .threshold-slider {
@@ -97,7 +113,7 @@ html, body {
   direction: rtl;
   -webkit-appearance: none;
   appearance: none;
-  width: 36px;
+  width: 18px;
   flex: 1;
   margin: 6px 0;
   background: transparent;
@@ -112,6 +128,7 @@ html, body {
   width: 18px; height: 18px; border-radius: 50%;
   background: var(--surface); border: 2px solid var(--accent-dim);
   box-shadow: 0 0 4px rgba(0,229,255,0.3);
+  margin-left: -7px;
 }
 .threshold-slider::-moz-range-track {
   width: 4px; background: var(--text-dim); border-radius: 2px;
@@ -133,19 +150,35 @@ html, body {
 .stability-section {
   grid-area: stability;
   display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  padding: 0;
+  gap: 0;
+}
+
+.stability-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-style: italic;
+  color: var(--text-secondary);
+  letter-spacing: 0.2em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0;
+  word-break: break-all;
+  line-height: 1.4;
+  text-align: center;
+  width: 1.2em;
+}
+
+.stability-section .slider-track-wrap {
+  flex: 1;
+  display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
   padding: 8px 2px;
-  background: var(--surface);
-  border: 1px solid var(--accent-subtle);
-  border-radius: 2px;
-}
-
-.stability-label {
-  font-size: 0.6rem;
-  color: var(--text-secondary);
-  letter-spacing: 0.15em;
 }
 
 .stability-slider {
@@ -153,7 +186,7 @@ html, body {
   direction: rtl;
   -webkit-appearance: none;
   appearance: none;
-  width: 36px;
+  width: 18px;
   flex: 1;
   margin: 6px 0;
   background: transparent;
@@ -168,6 +201,7 @@ html, body {
   width: 18px; height: 18px; border-radius: 50%;
   background: var(--surface); border: 2px solid var(--accent-dim);
   box-shadow: 0 0 4px rgba(0,229,255,0.3);
+  margin-left: -7px;
 }
 .stability-slider::-moz-range-track {
   width: 4px; background: var(--text-dim); border-radius: 2px;
@@ -210,7 +244,7 @@ html, body {
   margin-bottom: 0;
 }
 .range-title {
-  font-size: 0.6rem; color: var(--text-dim); letter-spacing: 0.15em;
+  font-size: 1rem; color: var(--text-secondary); letter-spacing: 0.15em; font-style: italic;
 }
 .range-val {
   font-size: 0.75rem; color: var(--accent-dim); opacity: 0.8;
@@ -349,11 +383,11 @@ html, body {
   text-align: center;
 }
 .stat-label {
-  display: block; font-size: 0.5rem; color: var(--text-dim);
+  display: block; font-size: 0.7rem; color: var(--text-secondary);
   letter-spacing: 0.1em;
 }
 .stat-value {
-  display: block; font-size: 0.75rem; color: var(--text-secondary);
+  display: block; font-size: 0.9rem; color: var(--accent-dim);
 }
 
 /* ============================================

@@ -143,7 +143,7 @@ export class BpmGauge {
     // Main BPM value — large, inside arc center
     const bpmFontSize = Math.max(28, radius * 0.55);
     ctx.fillStyle = rgba(Accent, textAlpha);
-    ctx.font = `${bpmFontSize}px 'Share Tech Mono', monospace`;
+    ctx.font = `italic ${bpmFontSize}px 'Share Tech Mono', monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
     ctx.fillText(bpmText + suffix, cx, cy + bpmFontSize * 0.15);
